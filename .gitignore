@@ -215,3 +215,4 @@ libs/Test/test pandas.py
 libs/tkinter_extension.py
 libs/version.py
 libs/version.txt
+*.jpg

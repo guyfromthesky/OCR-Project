@@ -1,5 +1,6 @@
 #System variable and io handling
 import os
+import csv
 from posixpath import basename
 import sys
 
@@ -48,6 +49,9 @@ from openpyxl.utils import get_column_letter, column_index_from_string
 from libs.configmanager import ConfigLoader
 from libs.version import get_version
 from libs.tkinter_extension import AutocompleteCombobox
+
+import cv2
+import numpy as np
 
 #from document_toolkit_function.py import *
 
@@ -101,6 +105,10 @@ class OCR_Project(Frame):
 		self.StatusLength = 120
 		self.AppLanguage = 'en'
 
+		self.OCR_File_Path = None
+
+		self.Path_Size = 80
+
 		self.init_App_Setting()
 		
 		self.App_LanguagePack = {}
@@ -144,8 +152,6 @@ class OCR_Project(Frame):
 	def init_UI(self):
 	
 		self.Generate_OCR_Tool_UI(self.OCR_TOOL)
-		
-		self.Generate_Debugger_UI(self.Process)
 
 	def Generate_Menu_UI(self):
 		menubar = Menu(self.parent) 
@@ -183,10 +189,6 @@ class OCR_Project(Frame):
 		self.OCR_TOOL = Frame(self.TAB_CONTROL)
 		#self.TAB_CONTROL.add(self.AutoTest, text= self.LanguagePack.Tab['AutomationTest'])
 		self.TAB_CONTROL.add(self.OCR_TOOL, text= 'OCR Project')
-
-		#Tab
-		self.Process = Frame(self.TAB_CONTROL)
-		self.TAB_CONTROL.add(self.Process, text= self.LanguagePack.Tab['Debug'])
 		
 		self.TAB_CONTROL.pack(expand=1, fill="both")
 		return
@@ -195,123 +197,144 @@ class OCR_Project(Frame):
 	def Generate_OCR_Tool_UI(self, Tab):
 		
 		Row=1
-		self.Str_Deep_Old_File_Path = StringVar()
+		self.Str_OCR_Image_Path = StringVar()
 		Label(Tab, text=  self.LanguagePack.Label['ImageSource']).grid(row=Row, column=1, padx=5, pady=5, sticky= W)
-		self.Entry_Old_File_Path = Entry(Tab,width = 100, state="readonly", textvariable=self.Str_Deep_Old_File_Path)
+		self.Entry_Old_File_Path = Entry(Tab,width = self.Path_Size, state="readonly", textvariable=self.Str_OCR_Image_Path)
 		self.Entry_Old_File_Path.grid(row=Row, column=2, columnspan=7, padx=5, pady=5, sticky=E+W)
-		
-		Btn_Browse_Image = Button(Tab, width = self.Button_Width_Half, text=  self.LanguagePack.Button['Browse'], command= self.Btn_OCR_Browse_Data)
+		 
+		Btn_Browse_Image = Button(Tab, width = self.Button_Width_Half, text=  self.LanguagePack.Button['Browse'], command= self.Btn_OCR_Browse_Image_Data)
 		Btn_Browse_Image.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
 
 		Row+=1
-		self.Str_Deep_Old_File_Path = StringVar()
-		Label(Tab, text= 'Select Setting').grid(row=Row, column=1, padx=5, pady=5, sticky= W)
-		self.Entry_Old_File_Path = Entry(Tab,width = 100, state="readonly", textvariable=self.Str_Deep_Old_File_Path)
+		self.Str_OCR_Config_Path = StringVar()
+		Label(Tab, text= self.LanguagePack.Label['ScanConfig']).grid(row=Row, column=1, padx=5, pady=5, sticky= W)
+		self.Entry_Old_File_Path = Entry(Tab,width = self.Path_Size, state="readonly", textvariable=self.Str_OCR_Config_Path)
 		self.Entry_Old_File_Path.grid(row=Row, column=2, columnspan=7, padx=5, pady=5, sticky=E+W)
 		
-		Btn_Browse_Setting = Button(Tab, width = self.Button_Width_Half, text=  self.LanguagePack.Button['Browse'], command= self.Btn_OCR_Browse_Data)
-		Btn_Browse_Setting.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+		Btn_Browse_Setting = Button(Tab, width = self.Button_Width_Half, text=  self.LanguagePack.Button['Browse'], command= self.Btn_OCR_Browse_Config_File)
+		Btn_Browse_Setting.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=E)
 		
 		Row+=1
-		Label(Tab, text= 'Center X:').grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-		self.Str_Data_Sheet_Name = Text(Tab, width = 10, height=1) #
-		self.Str_Data_Sheet_Name.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
-		self.Str_Data_Sheet_Name.insert("end", '100')
+		Label(Tab, text= self.LanguagePack.Label['CenterX']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		self.Str_CenterX = Text(Tab, width = 10, height=1) #
+		self.Str_CenterX.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
 
-		Label(Tab, text= 'Center Y:').grid(row=Row, column=3, pady=5, sticky=W)
-		self.Str_Data_Sheet_Name = Text(Tab, width=10, height=1) #
-		self.Str_Data_Sheet_Name.grid(row=Row, column=4, pady=5, sticky=W)
-		self.Str_Data_Sheet_Name.insert("end", '100')
+		self.Str_CenterX.bind("<Tab>", self.entry_next)	
 
-		Label(Tab, text= self.LanguagePack.Label['BrowseType']).grid(row=Row, column=5, rowspan=2, pady=5, sticky=W)
+		Label(Tab, text= self.LanguagePack.Label['CenterY']).grid(row=Row, column=3, pady=5, sticky=W)
+		self.Str_CenterY = Text(Tab, width=10, height=1) #
+		self.Str_CenterY.grid(row=Row, column=4, pady=5, sticky=W)
+		self.Str_CenterY.bind("<Tab>", self.entry_next)	
+
+		Btn_Input_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['AddAreaWithText'], command= self.Btn_OCR_Input_Area)
+		Btn_Input_Area.grid(row=Row, column=5, padx=5, pady=5, sticky=W)
+
+		Label(Tab, text= self.LanguagePack.Label['BrowseType']).grid(row=Row, column=6, rowspan=2, pady=5, sticky=W)
 
 		self.ocr_data_select_type = IntVar()
-		Radiobutton(Tab, width= 15, text=  self.LanguagePack.Option['Folder'], value=1, variable=self.ocr_data_select_type).grid(row=Row, column=6, padx=0, pady=5, sticky=W)
+		Radiobutton(Tab, width= 15, text=  self.LanguagePack.Option['Folder'], value=1, variable=self.ocr_data_select_type).grid(row=Row, column=7,columnspan=2,padx=0, pady=5, sticky=W)
 		self.ocr_data_select_type.set(1)
 
 
-		Btn_Select_Area = Button(Tab, width = self.Button_Width_Half, text= 'Select Area', command= self.Open_OCR_Result_Folder)
-		Btn_Select_Area.grid(row=Row, column=7, columnspan=2, padx=5, pady=5, sticky=E)
+		
 
-		Btn_Add_Area = Button(Tab, width = self.Button_Width_Half, text= 'Add Area', command= self.Open_OCR_Result_Folder)
-		Btn_Add_Area.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+		#Btn_Input_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['AddAreaWithText'], command= self.Btn_OCR_Input_Area)
+		#Btn_Input_Area.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
 
 		Row+=1
-		Label(Tab, text= 'Height:').grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-		self.Str_Data_Col_Name = Text(Tab, width=10, height=1) #
-		self.Str_Data_Col_Name.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
-		self.Str_Data_Col_Name.insert("end", '200')
+		Label(Tab, text= self.LanguagePack.Label['Height']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		self.Str_Height = Text(Tab, width=10, height=1) #
+		self.Str_Height.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
+		self.Str_Height.bind("<Tab>", self.entry_next)	
+	
+		Label(Tab, text= self.LanguagePack.Label['Weight']).grid(row=Row, column=3, pady=5, sticky=W)
+		self.Str_Weight = Text(Tab, width = 10, height=1) #
+		self.Str_Weight.grid(row=Row, column=4, pady=5, sticky=W)
+		self.Str_Weight.bind("<Tab>", self.entry_next)	
 
-		Label(Tab, text= 'Weight:').grid(row=Row, column=3, pady=5, sticky=W)
-		self.Str_Data_Col_Name = Text(Tab, width = 10, height=1) #
-		self.Str_Data_Col_Name.grid(row=Row, column=4, pady=5, sticky=W)
-		self.Str_Data_Col_Name.insert("end", '200')
+		self.Btn_Update_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['SaveConfig'], command= self.Btn_OCR_Update_Area)
+		self.Btn_Update_Area.grid(row=Row, column=5, padx=5, pady=5, sticky=W)
+		self.Btn_Update_Area.configure(state=DISABLED)
 
-		Radiobutton(Tab, width= 15, text=  self.LanguagePack.Option['File'], value=2, variable=self.ocr_data_select_type).grid(row=Row, column=6, padx=0, pady=5, sticky=W)
+		Radiobutton(Tab, width= 15, text= self.LanguagePack.Option['File'], value=2, variable=self.ocr_data_select_type).grid(row=Row, column=7,columnspan=2, padx=0, pady=5, sticky=W)
 		
-
-		Btn_Preview_Area = Button(Tab, width = self.Button_Width_Half, text= 'Preview Area', command= self.Open_OCR_Result_Folder)
-		Btn_Preview_Area.grid(row=Row, column=7, columnspan=2,padx=5, pady=5, sticky=E)
-		
-		Btn_Save_Area = Button(Tab, width = self.Button_Width_Half, text= 'Save Profile', command= self.Open_OCR_Result_Folder)
-		Btn_Save_Area.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
 		
 		Row+=1
 		self.Treeview = Treeview(Tab)
-		self.Treeview.grid(row=Row, column=1, columnspan=9, padx=5, pady=5, sticky = N+S+W+E)
+		self.Focused_Item = None
+		self.Treeview.grid(row=Row, column=1, columnspan=8, rowspan=5, padx=5, pady=5, sticky = N+S+W+E)
 		verscrlbar = Scrollbar(Tab, orient ="vertical", command = self.Treeview.yview)
 		self.Treeview.configure( yscrollcommand=verscrlbar.set)
 	
 		self.Treeview.Scrollable = True
-		self.Treeview['columns'] = ('index', 'CenterX', 'CenterY', 'Height', 'Weight')
+		self.Treeview['columns'] = ('X', 'Y', 'W', 'H')
 
 		self.Treeview.column('#0', width=0, stretch=NO)
-		self.Treeview.column('index', anchor=CENTER, width=0, stretch=NO)
-		self.Treeview.column('CenterX', anchor=CENTER, width=100)
-		self.Treeview.column('CenterY', anchor=CENTER, width=100)
-		self.Treeview.column('Height', anchor=CENTER, width=100)
-		self.Treeview.column('Weight', anchor=CENTER, width=100)
+		self.Treeview.column('X', anchor=CENTER, width=100)
+		self.Treeview.column('Y', anchor=CENTER, width=100)
+		self.Treeview.column('W', anchor=CENTER, width=100)
+		self.Treeview.column('H', anchor=CENTER, width=100)
 
 		self.Treeview.heading('#0', text='', anchor=CENTER)
-		self.Treeview.heading('index', text='index', anchor=CENTER)
-		self.Treeview.heading('CenterX', text='Center X', anchor=CENTER)
-		self.Treeview.heading('CenterY', text='Center Y', anchor=CENTER)
-		self.Treeview.heading('Height', text='Height', anchor=CENTER)
-		self.Treeview.heading('Weight', text='Weight', anchor=CENTER)
+		self.Treeview.heading('X', text='X', anchor=CENTER)
+		self.Treeview.heading('Y', text='Y', anchor=CENTER)
+		self.Treeview.heading('W', text='W', anchor=CENTER)
+		self.Treeview.heading('H', text='H', anchor=CENTER)
 
-		verscrlbar.grid(row=Row, column=11,  sticky = N+S+E)
+		verscrlbar.grid(row=Row, column=8, rowspan=5,  sticky = N+S+E)
 		Tab.grid_columnconfigure(11, weight=0, pad=0)
 		styles = Style()
-		styles.configure('Treeview',rowheight=22)
+		styles.configure('Treeview',rowheight=15)
 
 		self.Treeview.bind("<Delete>", self.delete_treeview_line)	
-		self.Treeview.bind("<Double-1>", self.double_right_click_treeview)	
+		self.Treeview.bind("<Double-1>", self.Treeview_OCR_Select_Row)	
+
+		Btn_Select_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['SelectArea'], command= self.Btn_OCR_Select_Area)
+		Btn_Select_Area.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+		
+		Row+=1
+		
+		Btn_Preview_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['PreviewArea'], command= self.Btn_OCR_Preview_Areas)
+		Btn_Preview_Area.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
+		
+		Row+=1
+
+		Btn_Save_Setting = Button(Tab, width = self.Button_Width_Half, text=  self.LanguagePack.Button['SaveConfig'], command= self.Btn_OCR_Save_Config_File)
+		Btn_Save_Setting.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
 
 		Row+=1
-		Label(Tab, text= 'Debug:').grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-		self.Debugger = Text(Tab, width=110, height=3, undo=True, wrap=WORD)
+
+		Btn_Open_Result = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['OpenOutput'], command= self.Open_OCR_Result_Folder)
+		Btn_Open_Result.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
+
+		Row+=1
+
+		Btn_Execute = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['Scan'], command= self.Btn_OCR_Execute)
+		Btn_Execute.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+
+		Row+=1
+		Label(Tab, text= self.LanguagePack.Label['Debug']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		self.Debugger = scrolledtext.ScrolledText(Tab, width=110, height=5, undo=False, wrap=WORD, )
 		self.Debugger.grid(row=Row, column=2, columnspan=8, padx=5, pady=5, sticky=W+E+N+S)
 
 		Row+=1
-		Label(Tab, text= 'Progress:').grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		Label(Tab, text= self.LanguagePack.Label['Progress']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
 		self.progressbar = Progressbar(Tab, orient=HORIZONTAL, length=900,  mode='determinate')
 		self.progressbar["maximum"] = 1000
 		self.progressbar.grid(row=Row, column=2, columnspan=8, padx=5, pady=5, sticky=W)
 
-		Row+=1
-		Button(Tab, width = self.Button_Width_Half, text= 'Open Result', command= self.Open_OCR_Result_Folder).grid(row=Row, column=7, columnspan=2,padx=5, pady=5, sticky=E)
-		Button(Tab, width = self.Button_Width_Half, text= 'Scan', command= self.Btn_OCR_Execute).grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+		
+		
 
-	def Generate_Debugger_UI(self,Tab):
-		Row = 1
-		self.Debugger = Text(Tab, width=125, height=15, undo=True, wrap=WORD, )
-		self.Debugger.grid(row=Row, column=1, columnspan=10, padx=5, pady=5, sticky=W+E+N+S)
 
 ###########################################################################################
 # Treeview FUNCTION
 ###########################################################################################
 
 	def delete_treeview_line(self, event):
+		'''
+		Function activate when select an entry from a Treeview and press Delete btn
+		'''
 		selected = self.Treeview.selection()
 		to_remove = []
 		for child_obj in selected:
@@ -319,18 +342,12 @@ class OCR_Project(Frame):
 			tm_index = child['values'][0]
 			to_remove.append(tm_index)
 			self.Treeview.delete(child_obj)
-			
-		#print('Current TM pair: ', len(self.MyTranslator.translation_memory))
-		print('Current Dataframe pair: ', len(self.MyTranslator.current_tm))
-		try:
-			self.MyTranslator.current_tm = self.MyTranslator.current_tm.drop(to_remove)
-		except Exception as e:
-			print('Error:', e)
-		
-		print('After removed TM pair: ', len(self.MyTranslator.current_tm))
-		#self.save_app_config()
 
+	# Obsoleted.
 	def double_right_click_treeview(self, event):
+		'''
+		Function activate when double click an entry from Treeview
+		'''
 		focused = self.Treeview.focus()
 		child = self.Treeview.item(focused)
 		self.Debugger.insert("end", "\n")
@@ -338,9 +355,7 @@ class OCR_Project(Frame):
 		self.Debugger.insert("end", "\n")
 		self.Debugger.insert("end", 'English: ' + str(child["values"][0]))
 		self.Debugger.yview(END)
-		#self.pair_list.delete("1.0", END)
-		#self.pair_list.insert("end", text)
-		#print(child)
+
 
 	# Nam will check
 	def load_tm_list(self):
@@ -349,49 +364,20 @@ class OCR_Project(Frame):
 		Display the pair languages in the text box.
 		"""
 		self.remove_treeview()
-		tm_size = len(self.MyTranslator.translation_memory)
 		
-		self.Treeview.heading('Source', text='Source' + ' (' + self.MyTranslator.from_language.upper() + ') ', anchor=CENTER)
-		self.Treeview.heading('Target', text='Target' + ' (' + self.MyTranslator.to_language.upper() + ') ',  anchor=CENTER)
-		
-		for index, pair in self.MyTranslator.translation_memory.iterrows():	
-			from_str = pair[self.MyTranslator.from_language]
-			to_str = pair[self.MyTranslator.to_language]
-			if from_str != None:
-				#print("Pair:", ko_str, en_str)
-				try:
-					#self.Treeview.insert('', 'end', text= str(pair['ko']), values=([str(pair['en'])]))
-					self.Treeview.insert('', 'end', text= '', values=( index, str(from_str), str(to_str)))
-					#print('Inserted id:', id)
-				except:
-					pass	
-					
+		_area_list = []
 
-	# Nam will check
-	def search_tm_list(self):
-		"""
-		Search text box in TM Manager tab
-		Display the pair result from the text entered in the search field.
-		"""
-		text = self.search_text.get("1.0", END).replace("\n", "").replace(" ", "")
-		self.remove_treeview()
-		print("Text to search: ", text)
-		text = text.lower()
-		if text != None:
+		for location in _area_list:	
 			try:
-				if len(self.MyTranslator.translation_memory) > 0:
-					#translated = self.translation_memory[self.to_language].where(self.translation_memory[self.from_language] == source_text)[0]
-					result_from = self.MyTranslator.translation_memory[self.MyTranslator.translation_memory[self.MyTranslator.from_language].str.match(text)]
-					result_to = self.MyTranslator.translation_memory[self.MyTranslator.translation_memory[self.MyTranslator.to_language].str.match(text)]
-					result = result_from.append(result_to)
-					#print('type', type(result), 'total', len(result))
-					if len(result) > 0:
-						for index, pair in result.iterrows():
-							#self.Treeview.insert('', 'end', text= str(pair['ko']), values=([str(pair['en'])]))
-							self.Treeview.insert('', 'end', text= '', values=(index, str(pair[self.MyTranslator.to_language]), str(pair[self.MyTranslator.from_language])))
-			except Exception  as e:
-				#print('Error message (TM):', e)
+				self.Treeview.insert('', 'end', text= '', values=( str(location['index']), str(location['x']), str(location['y']), str(location['h']), str(location['w'])))
+			except:
 				pass
+
+	def add_treeview_row(self, location):
+		'''
+		Add a row to the current Treeview
+		'''
+		self.Treeview.insert('', 'end', text= '', values=(str(location[0]), str(location[1]), str(location[2]), str(location[3])))
 
 	def remove_treeview(self):
 		for i in self.Treeview.get_children():
@@ -408,7 +394,7 @@ class OCR_Project(Frame):
 		messagebox.showinfo('Error...', ErrorText)	
 
 	def SaveAppLanguage(self, language):
-		self.Notice.set(self.LanguagePack.ToolTips['AppLanuageUpdate'] + " "+ language) 
+		self.Write_Debug(self.LanguagePack.ToolTips['AppLanuageUpdate'] + " "+ language) 
 		self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'app_lang', language)
 
 	def SetLanguageKorean(self):
@@ -453,11 +439,41 @@ class OCR_Project(Frame):
 			db_path = self.CorrectPath(filename)
 			self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'db_file', db_path, True)
 		else:
-			self.Notice.set("No file is selected")
-
+			self.Write_Debug("No file is selected")
 
 ###########################################################################################
-# PROFANITY DETECTOR 
+# General functions
+###########################################################################################
+
+	def CorrectPath(self, path):
+		if sys.platform.startswith('win'):
+			return str(path).replace('/', '\\')
+		else:
+			return str(path).replace('\\', '//')
+	
+	def CorrectExt(self, path, ext):
+		if path != None and ext != None:
+			Outputdir = os.path.dirname(path)
+			baseName = os.path.basename(path)
+			sourcename = os.path.splitext(baseName)[0]
+			newPath = self.CorrectPath(Outputdir + '/'+ sourcename + '.' + ext)
+			return newPath
+
+	def Write_Debug(self, text):
+		'''
+		Function write the text to debugger box and move to the end of the box
+		'''
+		self.Debugger.insert("end", "\n")
+		self.Debugger.insert("end", str(text))
+
+		self.Debugger.yview(END)		
+
+	def entry_next(self, event):
+		event.widget.tk_focusNext().focus()
+		return("break")
+
+###########################################################################################
+# OCR
 ###########################################################################################
 	
 	def Btn_OCR_Select_Background_Colour(self):
@@ -485,45 +501,75 @@ class OCR_Project(Frame):
 		#print(self.BackgroundColor)
 		return
 
-	def Btn_OCR_Browse_Data(self):
+	def Btn_OCR_Browse_Config_File(self):
+		
+		config_file = filedialog.askopenfilename(title =  self.LanguagePack.ToolTips['SelectSource'], filetypes = (("Config files", "*.csv *.xlsx"), ), multiple = False)	
+		
+		if os.path.isfile(config_file) != "":
+			print('config_file', config_file)
+			self.Str_OCR_Config_Path.set(config_file)
+			self.remove_treeview()
+			with open(config_file, newline='', encoding='utf-8') as csvfile:
+				reader = csv.DictReader(csvfile)
+				for location in reader:	
+					self.Treeview.insert('', 'end', text= '', values=(str(location['x']), str(location['y']), str(location['w']), str(location['h'])))
+		else:
+			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
 
+	def Btn_OCR_Save_Config_File(self):
+		'''
+		Save all added scan areas to csv file.
+		'''
+		filename = filedialog.asksaveasfilename(title = "Select file", filetypes = (("Scan Config", "*.csv"),),)
+		filename = self.CorrectExt(filename, "csv")
+		if filename == "":
+			return
+		else:
+			with open(filename, 'w', newline='') as csvfile:
+				fieldnames = ['x', 'y', 'w', 'h']
+				writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+				writer.writeheader()
+				for row in self.Treeview.get_children():
+					child = self.Treeview.item(row)
+					writer.writerow({'x': child["values"][0], 'y': child["values"][1], 'w': child["values"][2], 'h': child["values"][3]})
+			
+	def Btn_OCR_Browse_Image_Data(self):
 		_select_type = self.ocr_data_select_type.get()
 		if _select_type == 1:
-			self.Btn_OCR_Browse_Data_Folder()
+			self.Btn_OCR_Browse_Image_Folder()
 		else:
-			self.Btn_OCR_Browse_Data_Files()
+			self.Btn_OCR_Browse_Image_Files()
 
-	def Btn_OCR_Browse_Data_Folder(self):
+	def Btn_OCR_Browse_Image_Folder(self):
 			
 		folder_name = filedialog.askdirectory(title =  self.LanguagePack.ToolTips['SelectSource'],)	
 		if folder_name != "":
 			_temp_text_files = os.listdir(folder_name)
-			self.BadWord_File_Path = []
+			self.OCR_File_Path = []
 			for file in _temp_text_files:
 				file_path = folder_name + '/' + file
 				if os.path.isfile(file_path):
 					baseName = os.path.basename(file_path)
 					sourcename, ext = os.path.splitext(baseName)
-					if 'xls' in ext:
-						self.BadWord_File_Path.append(file_path)
+					if 'jpg' in ext or 'jpeg' in ext:
+						self.OCR_File_Path.append(file_path)
 
-			self.Str_Text_File_Path.set(str(self.BadWord_File_Path[0]))
+			self.Str_OCR_Image_Path.set(str(self.OCR_File_Path[0]))
 
-			self.Notice.set(self.LanguagePack.ToolTips['DetaSelected'] + ": " + str(len(self.BadWord_File_Path)))
+			self.Write_Debug(self.LanguagePack.ToolTips['DataSelected'] + ": " + str(len(self.OCR_File_Path)))
 		else:
-			self.Notice.set(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
+			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
 
-	def Btn_OCR_Browse_Data_Files(self):
+	def Btn_OCR_Browse_Image_Files(self):
 			
-		filename = filedialog.askopenfilename(title =  self.LanguagePack.ToolTips['SelectSource'], filetypes = (("Workbook files", "*.xlsx *.xlsm"), ), multiple = True)	
+		filename = filedialog.askopenfilename(title =  self.LanguagePack.ToolTips['SelectSource'], filetypes = (("Image files", "*.jpg *.jpeg"), ), multiple = True)	
 		if filename != "":
-			self.BadWord_File_Path = list(filename)
-			self.Str_Text_File_Path.set(str(self.BadWord_File_Path[0]))
+			self.OCR_File_Path = list(filename)
+			self.Str_OCR_Image_Path.set(str(self.OCR_File_Path[0]))
 			
-			self.Notice.set(self.LanguagePack.ToolTips['DetaSelected'] + ": " + str(len(self.BadWord_File_Path)))
+			self.Write_Debug(self.LanguagePack.ToolTips['DataSelected'] + ": " + str(len(self.OCR_File_Path)))
 		else:
-			self.Notice.set(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
-		return
+			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
 
 	def Btn_OCR_Browse_DB_File(self):
 			
@@ -531,15 +577,112 @@ class OCR_Project(Frame):
 		if filename != "":
 			self.BadWord_DB_Path = filename
 			self.Str_BadWord_DB_Path.set(filename)
-			self.Notice.set(self.LanguagePack.ToolTips['DetaSelected'])	
+			self.Write_Debug(self.LanguagePack.ToolTips['DetaSelected'])	
 		else:
-			self.Notice.set(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
+			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
 		return
 		
+	def Btn_OCR_Select_Area(self):
+		if self.OCR_File_Path != None:
+			if os.path.isfile(self.OCR_File_Path[0]):
+				im = cv2.imread(self.OCR_File_Path[0])
+				(_h, _w) = im.shape[:2]
+				ratio = 720 / _h
+				if ratio != 1:
+					width = int(im.shape[1] * ratio)
+					height = int(im.shape[0] * ratio)
+					dim = (width, height)
+					im = cv2.resize(im, dim, interpolation = cv2.INTER_AREA)
+				# Select ROI
+				# Select multiple rectanglesx
+				for row in self.Treeview.get_children():
+					child = self.Treeview.item(row)
+					im = cv2.rectangle(im, (child["values"][0], child["values"][1]), (child["values"][0] + child["values"][2], child["values"][1] + child["values"][3]), (255,0,0), 2)
+
+				location = cv2.selectROI("Sekect scan area", im, showCrosshair=False,fromCenter=False)
+				cv2.destroyAllWindows() 
+				self.Treeview.insert('', 'end', text= '', values=(str(location[0]), str(location[1]), str(location[2]), str(location[3])))
+			else:
+				self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])		
+		else:
+			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])	
+		
+				
+
+	def Btn_OCR_Input_Area(self):
+		_x = self.Str_CenterX.get("1.0", END).replace('\n', '')
+		_y = self.Str_CenterY.get("1.0", END).replace('\n', '')
+		_w = self.Str_Weight.get("1.0", END).replace('\n', '')
+		_h = self.Str_Height.get("1.0", END).replace('\n', '')
+		self.Treeview.insert('', 'end', text= '', values=(str(_x), str(_y), str(_w), str(_h)))
+	
+	def Treeview_OCR_Select_Row(self, event):
+		'''
+		Function activate when double click an entry from Treeview
+		'''
+		self.Focused_Item = self.Treeview.focus()
+		child = self.Treeview.item(self.Focused_Item)
+		self.Btn_Update_Area.configure(state=NORMAL)
+		self.Str_CenterX.delete("1.0", END)
+		self.Str_CenterX.insert("end", child["values"][0])
+
+		self.Str_CenterY.delete("1.0", END)
+		self.Str_CenterY.insert("end", child["values"][1])
+
+		self.Str_Weight.delete("1.0", END)
+		self.Str_Weight.insert("end", child["values"][2])
+
+		self.Str_Height.delete("1.0", END)
+		self.Str_Height.insert("end", child["values"][3])
+
+		return
+
+	def Btn_OCR_Update_Area(self):
+
+		if self.Focused_Item != None:
+			_x = self.Str_CenterX.get("1.0", END).replace('\n', '')
+			_y = self.Str_CenterY.get("1.0", END).replace('\n', '')
+			_w = self.Str_Weight.get("1.0", END).replace('\n', '')
+			_h = self.Str_Height.get("1.0", END).replace('\n', '')
+
+			self.Treeview.item(self.Focused_Item, text="", values=(_x, _y, _w, _h))
+			self.Focused_Item = None
+			self.Btn_Update_Area.configure(state=DISABLED)
+		
+
+	def Btn_OCR_Preview_Areas(self):
+		if self.OCR_File_Path != None:
+			if os.path.isfile(self.OCR_File_Path[0]):
+				im = cv2.imread(self.OCR_File_Path[0])
+
+				(_h, _w) = im.shape[:2]
+				print(_h, _w)
+				
+				ratio = 720 / _h
+
+				print(ratio)
+				if ratio != 1:
+					width = int(im.shape[1] * ratio)
+					height = int(im.shape[0] * ratio)
+					dim = (width, height)
+					print('dim', dim)
+					im = cv2.resize(im, dim, interpolation = cv2.INTER_AREA)
+
+				for row in self.Treeview.get_children():
+					child = self.Treeview.item(row)
+					im = cv2.rectangle(im, (child["values"][0], child["values"][1]), (child["values"][0] + child["values"][2], child["values"][1] + child["values"][3]), (255,0,0), 2)
+
+				cv2.imshow("Image", im)
+				cv2.waitKey(0)
+			else:
+				self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])		
+		else:
+			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])	
+
 	def Open_OCR_Result_Folder(self):
 
 		try:
-			path = self.Function_Correct_Path(os.path.dirname( self.BadWord_File_Path[0]))
+			path = self.Function_Correct_Path(os.path.dirname( self.OCR_File_Path[0]))
 			_cmd = 'explorer ' + "\"" + str(path) + "\""
 			
 			subprocess.Popen(_cmd)
@@ -549,9 +692,11 @@ class OCR_Project(Frame):
 
 
 	def Btn_OCR_Execute(self):
-
-		Text_Files = self.BadWord_File_Path
-		Text_Folder =  os.path.dirname( self.BadWord_File_Path[0])
+		'''
+		Execute main function
+		'''
+		Text_Files = self.OCR_File_Path
+		Text_Folder =  os.path.dirname( self.OCR_File_Path[0])
 		#_temp_text_files = os.listdir(Text_Folder)
 		#Text_Files = []
 		#for file in _temp_text_files:
@@ -625,7 +770,7 @@ class OCR_Project(Frame):
 			try:
 				Status = self.Status_Queue.get(0)
 				if Status != None:
-					self.Notice.set(Status)
+					self.Write_Debug(Status)
 					self.Debugger.insert("end", "\n\r")
 					self.Debugger.insert("end", Status)
 					self.Debugger.yview(END)
@@ -643,7 +788,7 @@ class OCR_Project(Frame):
 			try:
 				Status = self.Status_Queue.get(0)
 				if Status != None:	
-					self.Notice.set('Bad word check is completed')
+					self.Write_Debug('Bad word check is completed')
 					#print(Status)
 					self.Debugger.insert("end", "\n\r")
 					self.Debugger.insert("end", Status)
