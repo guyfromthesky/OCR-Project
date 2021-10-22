@@ -36,17 +36,6 @@ from tkinter import simpledialog
 
 import webbrowser
 
-from openpyxl import load_workbook, Workbook
-from openpyxl.styles import Font
-from openpyxl.styles import PatternFill
-from openpyxl.styles import Color
-from openpyxl.styles import Color, PatternFill, Font
-
-from openpyxl.formatting.rule import ColorScaleRule, CellIsRule, FormulaRule
-from openpyxl.worksheet.table import Table, TableStyleInfo
-from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl.utils import get_column_letter, column_index_from_string
-
 from libs.configmanager import ConfigLoader
 from libs.version import get_version
 from libs.tkinter_extension import AutocompleteCombobox

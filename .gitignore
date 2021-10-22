@@ -4,7 +4,4 @@ __pycache__
 /Scripts
 /Tesseract-OCR
 *.pyc
-*.jpg
-*.png
-*.csv
 pyvenv.cfg
