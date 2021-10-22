@@ -315,13 +315,26 @@ class OCR_Project(Frame):
 
 		Row+=1
 
-		Btn_Execute = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['Scan'], command= self.Btn_OCR_Execute)
+		Btn_Execute = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['Scan'], command= None)
 		Btn_Execute.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
 
 		Row+=1
 		Label(Tab, text= self.LanguagePack.Label['Debug']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
 		self.Debugger = scrolledtext.ScrolledText(Tab, width=110, height=5, undo=False, wrap=WORD, )
 		self.Debugger.grid(row=Row, column=2, columnspan=8, padx=5, pady=5, sticky=W+E+N+S)
+
+		Row += 1
+		Label(Tab, text= self.LanguagePack.Label['WorkingRes']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+	
+		Radiobutton(Tab, width= 10, text=  '720p', value=1, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=2, padx=0, pady=5, sticky=W)
+		Radiobutton(Tab, width= 10, text=  '1080p', value=2, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=3, padx=0, pady=5, sticky=W)
+	
+		Row += 1
+		Label(Tab, text= self.LanguagePack.Label['WorkingLang']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		
+		self.option_working_language = OptionMenu(Tab, self.WorkingLanguage, *self.language_list, command = self.OCR_Setting_Set_Working_Language)
+		self.option_working_language.config(width=self.Button_Width_Full)
+		self.option_working_language.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
 
 		Row+=1
 		Label(Tab, text= self.LanguagePack.Label['Progress']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
@@ -335,39 +348,17 @@ class OCR_Project(Frame):
 	def Generate_OCR_Setting_UI(self, Tab):
 		Row = 1
 		Label(Tab, text= self.LanguagePack.Label['TesseractPath']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-		self.Text_TesseractPath = Entry(Tab,width = 80, state="readonly", textvariable=self.TesseractPath)
+		self.Text_TesseractPath = Entry(Tab,width = 100, state="readonly", textvariable=self.TesseractPath)
 		self.Text_TesseractPath.grid(row=Row, column=3, columnspan=5, padx=5, pady=5, sticky=E+W)
 		Button(Tab, width = self.Button_Width_Full, text=  self.LanguagePack.Button['Browse'], command= self.Btn_Select_Tesseract_Path).grid(row=Row, column=8, columnspan=2, padx=5, pady=5, sticky=E)
 		
 		Row += 1
 		Label(Tab, text= self.LanguagePack.Label['TesseractDataPath']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-		self.Text_TesseractDataPath = Entry(Tab,width = 80, state="readonly", textvariable=self.TesseractDataPath)
+		self.Text_TesseractDataPath = Entry(Tab,width = 100, state="readonly", textvariable=self.TesseractDataPath)
 		self.Text_TesseractDataPath.grid(row=Row, column=3, columnspan=5, padx=5, pady=5, sticky=E+W)
 		Button(Tab, width = self.Button_Width_Full, text=  self.LanguagePack.Button['Browse'], command= self.Btn_Select_Tesseract_Data_Path).grid(row=Row, column=8, columnspan=2, padx=5, pady=5, sticky=E)
 		
-		Row += 1
-		Label(Tab, text= self.LanguagePack.Label['WorkingRes']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-	
-		Radiobutton(Tab, width= 10, text=  '720p', value=1, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=3, padx=0, pady=5, sticky=W)
-		Radiobutton(Tab, width= 10, text=  '1080p', value=2, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=4, padx=0, pady=5, sticky=W)
-	
-		Row += 1
-		Label(Tab, text= self.LanguagePack.Label['WorkingLang']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-		
-		_tess_data_path = self.TesseractDataPath.get()
-		_tess_path = self.TesseractPath.get()
-		tessdata_dir_config = '--tessdata-dir ' + "\"" + _tess_data_path + "\""
-		pytesseract.pytesseract.tesseract_cmd = _tess_path
-		try:
-			self.language_list = pytesseract.get_languages(config=tessdata_dir_config)
 
-		except Exception as e:
-			print('Errror when getting language:', e)
-			self.language_list = ['']
-
-		self.option_working_language = OptionMenu(Tab, self.WorkingLanguage, *self.language_list, command = self.OCR_Setting_Set_Working_Language)
-		self.option_working_language.config(width=self.Button_Width_Full)
-		self.option_working_language.grid(row=Row, column=3, padx=5, pady=5, sticky=W)
 	
 
 ###########################################################################################
@@ -482,6 +473,15 @@ class OCR_Project(Frame):
 		_tesseract_data_path = self.Configuration['OCR_TOOL']['tess_data']
 		pytesseract.pytesseract.tesseract_cmd = _tesseract_data_path
 		self.TesseractDataPath.set(_tesseract_data_path)
+
+		tessdata_dir_config = '--tessdata-dir ' + "\"" + _tesseract_data_path + "\""
+		pytesseract.pytesseract.tesseract_cmd = _tesseract_path
+		try:
+			self.language_list = pytesseract.get_languages(config=tessdata_dir_config)
+
+		except Exception as e:
+			print('Error when getting language:', e)
+			self.language_list = ['']
 
 		_resolution = self.Configuration['OCR_TOOL']['resolution']
 		self.Resolution.set(_resolution)
@@ -1052,12 +1052,12 @@ def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_c
 		imCrop = Function_Pre_Processing_Image(imCrop)
 		ocr = Get_Text(imCrop, tess_language, advanced_tessdata_dir_config)
 		_result.append(ocr)
-
+	print(_result)
 	baseName = os.path.basename(input_image)
 	file_name = os.path.splitext(baseName)[0]
 	while True:
 		try:
-			with open(result_file, 'w', newline='', encoding='utf-8-sig') as csvfile:
+			with open(result_file, 'a', newline='', encoding='utf-8-sig') as csvfile:
 				writer = csv.writer(csvfile)
 				writer.writerow([file_name] + _result)
 				break
