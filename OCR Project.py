@@ -3,6 +3,7 @@ import os
 import csv
 from posixpath import basename
 import sys
+import random
 
 import configparser
 #Regular expression handlings
@@ -14,7 +15,7 @@ import subprocess
 import time
 from datetime import datetime
 #function difination
-import unicodedata
+
 from urllib.parse import urlparse
 
 #GUI
@@ -52,6 +53,10 @@ from libs.tkinter_extension import AutocompleteCombobox
 
 import cv2
 import numpy as np
+
+from PIL import Image
+
+import pytesseract
 
 #from document_toolkit_function.py import *
 
@@ -145,13 +150,15 @@ class OCR_Project(Frame):
 		self.Generate_Tab_UI()
 		self.init_UI()
 		
-
+		self.init_UI_Data()
 
 
 	# UI init
 	def init_UI(self):
 	
 		self.Generate_OCR_Tool_UI(self.OCR_TOOL)
+
+		self.Generate_OCR_Setting_UI(self.OCR_SETTING)
 
 	def Generate_Menu_UI(self):
 		menubar = Menu(self.parent) 
@@ -190,6 +197,10 @@ class OCR_Project(Frame):
 		#self.TAB_CONTROL.add(self.AutoTest, text= self.LanguagePack.Tab['AutomationTest'])
 		self.TAB_CONTROL.add(self.OCR_TOOL, text= 'OCR Project')
 		
+		
+		self.OCR_SETTING = Frame(self.TAB_CONTROL)
+		self.TAB_CONTROL.add(self.OCR_SETTING, text= 'OCR Setting')
+
 		self.TAB_CONTROL.pack(expand=1, fill="both")
 		return
 
@@ -260,9 +271,10 @@ class OCR_Project(Frame):
 		
 		
 		Row+=1
+		TreeView_Row = 5
 		self.Treeview = Treeview(Tab)
 		self.Focused_Item = None
-		self.Treeview.grid(row=Row, column=1, columnspan=8, rowspan=5, padx=5, pady=5, sticky = N+S+W+E)
+		self.Treeview.grid(row=Row, column=1, columnspan=8, rowspan=TreeView_Row, padx=5, pady=5, sticky = N+S+W+E)
 		verscrlbar = Scrollbar(Tab, orient ="vertical", command = self.Treeview.yview)
 		self.Treeview.configure( yscrollcommand=verscrlbar.set)
 	
@@ -281,7 +293,7 @@ class OCR_Project(Frame):
 		self.Treeview.heading('W', text='W', anchor=CENTER)
 		self.Treeview.heading('H', text='H', anchor=CENTER)
 
-		verscrlbar.grid(row=Row, column=8, rowspan=5,  sticky = N+S+E)
+		verscrlbar.grid(row=Row, column=8, rowspan=TreeView_Row,  sticky = N+S+E)
 		Tab.grid_columnconfigure(11, weight=0, pad=0)
 		styles = Style()
 		styles.configure('Treeview',rowheight=15)
@@ -297,6 +309,10 @@ class OCR_Project(Frame):
 		Btn_Preview_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['PreviewArea'], command= self.Btn_OCR_Preview_Areas)
 		Btn_Preview_Area.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
 		
+		#Row+=1
+		#Btn_Preview_Scan = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['PreviewArea'], command= self.Btn_OCR_Preview_Scan)
+		#Btn_Preview_Scan.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
+
 		Row+=1
 
 		Btn_Save_Setting = Button(Tab, width = self.Button_Width_Half, text=  self.LanguagePack.Button['SaveConfig'], command= self.Btn_OCR_Save_Config_File)
@@ -304,8 +320,9 @@ class OCR_Project(Frame):
 
 		Row+=1
 
-		Btn_Open_Result = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['OpenOutput'], command= self.Open_OCR_Result_Folder)
-		Btn_Open_Result.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
+		self.Btn_Open_Result = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['OpenOutput'], command= self.Open_OCR_Result_Folder)
+		self.Btn_Open_Result.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
+		self.Btn_Open_Result.configure(state=DISABLED)
 
 		Row+=1
 
@@ -319,13 +336,50 @@ class OCR_Project(Frame):
 
 		Row+=1
 		Label(Tab, text= self.LanguagePack.Label['Progress']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-		self.progressbar = Progressbar(Tab, orient=HORIZONTAL, length=900,  mode='determinate')
+		self.progressbar = Progressbar(Tab, orient=HORIZONTAL, length=800,  mode='determinate')
 		self.progressbar["maximum"] = 1000
-		self.progressbar.grid(row=Row, column=2, columnspan=8, padx=5, pady=5, sticky=W)
+		self.progressbar.grid(row=Row, column=2, columnspan=6, padx=5, pady=5, sticky=E+W)
 
-		
-		
+		Btn_Execute = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['Scan'], command= self.Btn_OCR_Execute)
+		Btn_Execute.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
 
+	def Generate_OCR_Setting_UI(self, Tab):
+		Row = 1
+		Label(Tab, text= self.LanguagePack.Label['TesseractPath']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		self.Text_TesseractPath = Entry(Tab,width = 80, state="readonly", textvariable=self.TesseractPath)
+		self.Text_TesseractPath.grid(row=Row, column=3, columnspan=5, padx=5, pady=5, sticky=E+W)
+		Button(Tab, width = self.Button_Width_Full, text=  self.LanguagePack.Button['Browse'], command= self.Btn_Select_Tesseract_Path).grid(row=Row, column=8, columnspan=2, padx=5, pady=5, sticky=E)
+		
+		Row += 1
+		Label(Tab, text= self.LanguagePack.Label['TesseractDataPath']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		self.Text_TesseractDataPath = Entry(Tab,width = 80, state="readonly", textvariable=self.TesseractDataPath)
+		self.Text_TesseractDataPath.grid(row=Row, column=3, columnspan=5, padx=5, pady=5, sticky=E+W)
+		Button(Tab, width = self.Button_Width_Full, text=  self.LanguagePack.Button['Browse'], command= self.Btn_Select_Tesseract_Data_Path).grid(row=Row, column=8, columnspan=2, padx=5, pady=5, sticky=E)
+		
+		Row += 1
+		Label(Tab, text= self.LanguagePack.Label['WorkingRes']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+	
+		Radiobutton(Tab, width= 10, text=  '720p', value=1, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=3, padx=0, pady=5, sticky=W)
+		Radiobutton(Tab, width= 10, text=  '1080p', value=2, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=4, padx=0, pady=5, sticky=W)
+	
+		Row += 1
+		Label(Tab, text= self.LanguagePack.Label['WorkingLang']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		
+		_tess_data_path = self.TesseractDataPath.get()
+		_tess_path = self.TesseractPath.get()
+		tessdata_dir_config = '--tessdata-dir ' + "\"" + _tess_data_path + "\""
+		pytesseract.pytesseract.tesseract_cmd = _tess_path
+		try:
+			self.language_list = pytesseract.get_languages(config=tessdata_dir_config)
+
+		except Exception as e:
+			print('Errror when getting language:', e)
+			self.language_list = ['']
+
+		self.option_working_language = OptionMenu(Tab, self.WorkingLanguage, *self.language_list, command = self.OCR_Setting_Set_Working_Language)
+		self.option_working_language.config(width=self.Button_Width_Full)
+		self.option_working_language.grid(row=Row, column=3, padx=5, pady=5, sticky=W)
+	
 
 ###########################################################################################
 # Treeview FUNCTION
@@ -417,7 +471,11 @@ class OCR_Project(Frame):
 	def init_App_Setting(self):
 
 		self.DB_Path = StringVar()
-	
+		self.TesseractPath = StringVar()
+		self.TesseractDataPath = StringVar()
+		self.WorkingLanguage = StringVar()
+
+		self.Resolution = IntVar()
 		self.CurrentDataSource = StringVar()
 		self.Notice = StringVar()
 
@@ -425,8 +483,25 @@ class OCR_Project(Frame):
 		self.Configuration = self.AppConfig.Config
 		self.AppLanguage  = self.Configuration['OCR_TOOL']['app_lang']
 		
-		db_path = self.Configuration['OCR_TOOL']['db_file']
-		self.DB_Path.set(db_path)
+		_db_path = self.Configuration['OCR_TOOL']['db_file']
+		self.DB_Path.set(_db_path)
+
+		_tesseract_path = self.Configuration['OCR_TOOL']['tess_path']
+		pytesseract.pytesseract.tesseract_cmd = _tesseract_path
+		self.TesseractPath.set(_tesseract_path)
+
+		_tesseract_data_path = self.Configuration['OCR_TOOL']['tess_data']
+		pytesseract.pytesseract.tesseract_cmd = _tesseract_data_path
+		self.TesseractDataPath.set(_tesseract_data_path)
+
+		_resolution = self.Configuration['OCR_TOOL']['resolution']
+		self.Resolution.set(_resolution)
+		
+	def init_UI_Data(self):
+		_working_language = self.Configuration['OCR_TOOL']['scan_lang']
+		print('Working language:', _working_language)
+		self.WorkingLanguage.set(_working_language)
+
 
 	def SaveSetting(self):
 
@@ -472,6 +547,11 @@ class OCR_Project(Frame):
 		event.widget.tk_focusNext().focus()
 		return("break")
 
+	def Function_Get_TimeStamp(self):		
+		now = datetime.now()
+		timestamp = str(int(datetime.timestamp(now)))			
+		return timestamp
+
 ###########################################################################################
 # OCR
 ###########################################################################################
@@ -503,13 +583,15 @@ class OCR_Project(Frame):
 
 	def Btn_OCR_Browse_Config_File(self):
 		
+		self.Btn_Open_Result.configure(state=DISABLED)
+
 		config_file = filedialog.askopenfilename(title =  self.LanguagePack.ToolTips['SelectSource'], filetypes = (("Config files", "*.csv *.xlsx"), ), multiple = False)	
 		
-		if os.path.isfile(config_file) != "":
+		if os.path.isfile(config_file):
 			print('config_file', config_file)
 			self.Str_OCR_Config_Path.set(config_file)
 			self.remove_treeview()
-			with open(config_file, newline='', encoding='utf-8') as csvfile:
+			with open(config_file, newline='', encoding='utf-8-sig') as csvfile:
 				reader = csv.DictReader(csvfile)
 				for location in reader:	
 					self.Treeview.insert('', 'end', text= '', values=(str(location['x']), str(location['y']), str(location['w']), str(location['h'])))
@@ -534,6 +616,9 @@ class OCR_Project(Frame):
 					writer.writerow({'x': child["values"][0], 'y': child["values"][1], 'w': child["values"][2], 'h': child["values"][3]})
 			
 	def Btn_OCR_Browse_Image_Data(self):
+		
+		self.Btn_Open_Result.configure(state=DISABLED)
+		
 		_select_type = self.ocr_data_select_type.get()
 		if _select_type == 1:
 			self.Btn_OCR_Browse_Image_Folder()
@@ -551,10 +636,10 @@ class OCR_Project(Frame):
 				if os.path.isfile(file_path):
 					baseName = os.path.basename(file_path)
 					sourcename, ext = os.path.splitext(baseName)
-					if 'jpg' in ext or 'jpeg' in ext:
+					if ext in ['.jpg','.jpeg','.png']:
 						self.OCR_File_Path.append(file_path)
 
-			self.Str_OCR_Image_Path.set(str(self.OCR_File_Path[0]))
+			self.Str_OCR_Image_Path.set(str(folder_name) + '/*')
 
 			self.Write_Debug(self.LanguagePack.ToolTips['DataSelected'] + ": " + str(len(self.OCR_File_Path)))
 		else:
@@ -562,7 +647,7 @@ class OCR_Project(Frame):
 
 	def Btn_OCR_Browse_Image_Files(self):
 			
-		filename = filedialog.askopenfilename(title =  self.LanguagePack.ToolTips['SelectSource'], filetypes = (("Image files", "*.jpg *.jpeg"), ), multiple = True)	
+		filename = filedialog.askopenfilename(title =  self.LanguagePack.ToolTips['SelectSource'], filetypes = (("Image files", "*.jpg *.jpeg *png"), ), multiple = True)	
 		if filename != "":
 			self.OCR_File_Path = list(filename)
 			self.Str_OCR_Image_Path.set(str(self.OCR_File_Path[0]))
@@ -570,22 +655,13 @@ class OCR_Project(Frame):
 			self.Write_Debug(self.LanguagePack.ToolTips['DataSelected'] + ": " + str(len(self.OCR_File_Path)))
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
-
-	def Btn_OCR_Browse_DB_File(self):
-			
-		filename = filedialog.askopenfilename(title =  self.LanguagePack.ToolTips['SelectSource'], filetypes = (("Workbook files", "*.xlsx *.xlsm"), ), multiple = False)	
-		if filename != "":
-			self.BadWord_DB_Path = filename
-			self.Str_BadWord_DB_Path.set(filename)
-			self.Write_Debug(self.LanguagePack.ToolTips['DetaSelected'])	
-		else:
-			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
-		return
 		
 	def Btn_OCR_Select_Area(self):
+		
 		if self.OCR_File_Path != None:
-			if os.path.isfile(self.OCR_File_Path[0]):
-				im = cv2.imread(self.OCR_File_Path[0])
+			_index = random.randint(0, len(self.OCR_File_Path)-1)
+			if os.path.isfile(self.OCR_File_Path[_index]):
+				im = cv2.imread(self.OCR_File_Path[_index])
 				(_h, _w) = im.shape[:2]
 				ratio = 720 / _h
 				if ratio != 1:
@@ -611,9 +687,13 @@ class OCR_Project(Frame):
 
 	def Btn_OCR_Input_Area(self):
 		_x = self.Str_CenterX.get("1.0", END).replace('\n', '')
+		if _x == '': _x = 0
 		_y = self.Str_CenterY.get("1.0", END).replace('\n', '')
+		if _y == '': _y = 0
 		_w = self.Str_Weight.get("1.0", END).replace('\n', '')
+		if _w == '': _w = 0
 		_h = self.Str_Height.get("1.0", END).replace('\n', '')
+		if _h == '': _h = 0
 		self.Treeview.insert('', 'end', text= '', values=(str(_x), str(_y), str(_w), str(_h)))
 	
 	def Treeview_OCR_Select_Row(self, event):
@@ -635,39 +715,45 @@ class OCR_Project(Frame):
 		self.Str_Height.delete("1.0", END)
 		self.Str_Height.insert("end", child["values"][3])
 
-		return
 
 	def Btn_OCR_Update_Area(self):
 
 		if self.Focused_Item != None:
 			_x = self.Str_CenterX.get("1.0", END).replace('\n', '')
+			if _x == '': _x = 0
 			_y = self.Str_CenterY.get("1.0", END).replace('\n', '')
+			if _y == '': _y = 0
 			_w = self.Str_Weight.get("1.0", END).replace('\n', '')
+			if _w == '': _w = 0
 			_h = self.Str_Height.get("1.0", END).replace('\n', '')
-
+			if _h == '': _h = 0
 			self.Treeview.item(self.Focused_Item, text="", values=(_x, _y, _w, _h))
 			self.Focused_Item = None
 			self.Btn_Update_Area.configure(state=DISABLED)
 		
+	def Function_Load_Img(self, path):
+		img = cv2.imread(path)
+		(_h, _w) = img.shape[:2]
+		_working_res = self.Resolution.get()
+		if _working_res == 1:
+			_ratio = 720
+		else:
+			_ratio = 1080
+
+		ratio =  _ratio / _h
+		if ratio != 1:
+			width = int(img.shape[1] * ratio)
+			height = int(img.shape[0] * ratio)
+			dim = (width, height)
+			img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+		
+		return img
 
 	def Btn_OCR_Preview_Areas(self):
 		if self.OCR_File_Path != None:
-			if os.path.isfile(self.OCR_File_Path[0]):
-				im = cv2.imread(self.OCR_File_Path[0])
-
-				(_h, _w) = im.shape[:2]
-				print(_h, _w)
-				
-				ratio = 720 / _h
-
-				print(ratio)
-				if ratio != 1:
-					width = int(im.shape[1] * ratio)
-					height = int(im.shape[0] * ratio)
-					dim = (width, height)
-					print('dim', dim)
-					im = cv2.resize(im, dim, interpolation = cv2.INTER_AREA)
-
+			_index = random.randint(0, len(self.OCR_File_Path)-1)
+			if os.path.isfile(self.OCR_File_Path[_index]):
+				im = self.Function_Load_Img(self.OCR_File_Path[_index])
 				for row in self.Treeview.get_children():
 					child = self.Treeview.item(row)
 					im = cv2.rectangle(im, (child["values"][0], child["values"][1]), (child["values"][0] + child["values"][2], child["values"][1] + child["values"][3]), (255,0,0), 2)
@@ -679,10 +765,83 @@ class OCR_Project(Frame):
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])	
 
+	def Btn_OCR_Preview_Scan(self):
+		'''
+		Execute main function
+		'''
+		self.preview_index = random.randint(0, len(self.OCR_File_Path)-1)
+		if os.path.isfile(self.OCR_File_Path[self.preview_index]):
+			img_file = self.OCR_File_Path[self.preview_index]
+			_working_res = self.Resolution.get()
+			if _working_res == 1:
+				_ratio = 720
+			else:
+				_ratio = 1080
+			
+			self._scan_areas = []
+			for row in self.Treeview.get_children():
+				child = self.Treeview.item(row)
+				self._scan_areas.append(child['values'])
+
+			_tess_data = self.TesseractDataPath.get()
+			_tess_path = self.TesseractPath.get()
+			
+			_tess_language = self.WorkingLanguage.get()
+
+			self.BadWord_Check_Process = Process(target=Function_Preview_Scan, args=(self.Result_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, img_file, _ratio, self._scan_areas, ))
+			
+			self.BadWord_Check_Process.start()
+			self.after(DELAY1, self.Wait_For_Preview_Process)	
+
+	def Wait_For_Preview_Process(self):
+		if (self.BadWord_Check_Process.is_alive()):
+			
+			try:
+				percent = self.Process_Queue.get(0)
+				self.progressbar["value"] = percent
+				self.progressbar.update()
+				#self.Progress.set("Progress: " + str(percent/10) + '%')
+			except queue.Empty:
+				pass	
+			self.after(DELAY1, self.Wait_For_Preview_Process)
+		else:
+			try:
+				percent = self.Process_Queue.get(0)
+				self.progressbar["value"] = percent
+				self.progressbar.update()
+				#self.Progress.set("Progress: " + str(percent/10) + '%')
+			except queue.Empty:
+				pass
+			try:
+				Result = self.Result_Queue.get(0)
+				if Result != None:	
+					index = 0
+					img = self.Function_Load_Img(self.OCR_File_Path[self.preview_index])
+					
+					font = cv2.FONT_HERSHEY_SIMPLEX
+					fontScale= 1
+					fontColor= (255,255,255)
+					lineType= 2
+
+					for area in self._scan_areas:
+						_area = (area[0],area[0]+area[2])
+						_text = Result[index]
+						print(_text)
+						img = cv2.rectangle(img, (area[0], area[1]), (area[0] + area[2], area[1] + area[3]), (255,0,0), 2)
+
+						img = cv2.putText(img,_text,_area,font,fontScale,fontColor,lineType)
+						index+=1
+				cv2.imshow("Image", img)
+				cv2.waitKey(0)
+			except queue.Empty:
+				pass
+			self.BadWord_Check_Process.terminate()
+
+
 	def Open_OCR_Result_Folder(self):
 
 		try:
-			path = self.Function_Correct_Path(os.path.dirname( self.OCR_File_Path[0]))
+			path = self.Function_Correct_Path(self.Output_Result_Folder)
 			_cmd = 'explorer ' + "\"" + str(path) + "\""
 			
 			subprocess.Popen(_cmd)
@@ -695,74 +854,78 @@ class OCR_Project(Frame):
 		'''
 		Execute main function
 		'''
-		Text_Files = self.OCR_File_Path
-		Text_Folder =  os.path.dirname( self.OCR_File_Path[0])
-		#_temp_text_files = os.listdir(Text_Folder)
-		#Text_Files = []
-		#for file in _temp_text_files:
-		#	file_path = Text_Folder + '/' + file
-		#	if os.path.isfile(file_path):
-		#		baseName = os.path.basename(file_path)
-		#		sourcename, ext = os.path.splitext(baseName)
-		#		if 'xls' in ext:
-		#			Text_Files.append(file_path)
+		Image_Files = self.OCR_File_Path
+		Image_Folder =  os.path.dirname( self.OCR_File_Path[0])
 
-		match_type_index = self.Match_Type.get()
-		if match_type_index == 1:
-			exact_match = True
-		else:
-			exact_match = False
+		timestamp = self.Function_Get_TimeStamp()			
+		self.Output_Result_Folder = Image_Folder + '/' + 'Scan_Result_' + str(timestamp)
+		if not os.path.isdir(self.Output_Result_Folder):
+			os.mkdir(self.Output_Result_Folder)
+		output_result_file = self.Output_Result_Folder + '/result.csv'
+		_ratio = 720	
+		_scan_areas = []
+		for row in self.Treeview.get_children():
+			child = self.Treeview.item(row)
+			_scan_areas.append(child['values'])
 
-		Db_File = self.BadWord_DB_Path
+		_tess_data = self.TesseractDataPath.get()
+		_tess_path = self.TesseractPath.get()
+ 
+		_tess_language = self.WorkingLanguage.get()
 
-		Sheet_Name = "Data"
+		self.Btn_Open_Result.configure(state=NORMAL)
+
+		self.BadWord_Check_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas, ))
 		
-		try:
-			Sheet_Name = self.BadWord_Data_Sheet_Name.get("1.0", END).replace('\n', '')
-		except Exception as e:
-			ErrorMsg = ('Error message: ' + str(e))
-			print(ErrorMsg)
-
-		Index_Col = "String"
-		try:
-			Index_Col = self.BadWord_ColumnID.get("1.0", END).replace('\n', '')
-		except Exception as e:
-			ErrorMsg = ('Error message: ' + str(e))
-			print(ErrorMsg)
-		
-
-		try:
-			self.Background_Color
-		except:
-			self.Background_Color = 'ffff00'	
-		if self.Background_Color == False or self.Background_Color == None:
-			self.Background_Color = 'ffff00'
-		#print('Background_Color: ', self.Background_Color)
-		
-		try:
-			self.Font_Color
-		except:
-			self.Font_Color = 'FF0000'	
-		if self.Font_Color == False or self.Font_Color == None:
-			self.Font_Color = 'FF0000'
-		#print('Font_Color: ', self.Font_Color)
-
-		timestamp = "" #Function_Get_TimeStamp()			
-		Output_Result_Folder = Text_Folder + '/' + 'Bad_Word_Result_' + str(timestamp)
-		if not os.path.isdir(Output_Result_Folder):
-			os.mkdir(Output_Result_Folder)
-			
-		self.BadWord_Check_Process = Process(target=Function_BadWord_Execute, args=(self.Status_Queue, self.Process_Queue, Text_Files, Db_File, Output_Result_Folder, Sheet_Name, Index_Col, exact_match, self.Background_Color, self.Font_Color,))
 		self.BadWord_Check_Process.start()
-		self.after(DELAY1, self.Wait_For_BadWord_Process)	
+		
+		self.progressbar["value"] = 0
+		self.progressbar.update()
+
+		self.after(DELAY1, self.Wait_For_BadWord_Process)
+
+	def Btn_OCR_Execute_Old(self):
+		'''
+		Execute main function
+		'''
+		Image_Files = self.OCR_File_Path
+		Image_Folder =  os.path.dirname( self.OCR_File_Path[0])
+
+		timestamp = self.Function_Get_TimeStamp()			
+		self.Output_Result_Folder = Image_Folder + '/' + 'Scan_Result_' + str(timestamp)
+		if not os.path.isdir(self.Output_Result_Folder):
+			os.mkdir(self.Output_Result_Folder)
+		output_result_file = self.Output_Result_Folder + '/result.csv'
+		_ratio = 720	
+		_scan_areas = []
+		for row in self.Treeview.get_children():
+			child = self.Treeview.item(row)
+			_scan_areas.append(child['values'])
+
+		_tess_data = self.TesseractDataPath.get()
+		_tess_path = self.TesseractPath.get()
+		
+
+		_tess_language = self.WorkingLanguage.get()
+
+		self.Btn_Open_Result.configure(state=NORMAL)
+
+		self.BadWord_Check_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas, ))
+		
+		self.BadWord_Check_Process.start()
+		
+		self.progressbar["value"] = 0
+		self.progressbar.update()
+
+		self.after(DELAY1, self.Wait_For_BadWord_Process)		
 
 	def Wait_For_BadWord_Process(self):
 		if (self.BadWord_Check_Process.is_alive()):
 			
 			try:
 				percent = self.Process_Queue.get(0)
-				self.BadWord_Progressbar["value"] = percent
-				self.BadWord_Progressbar.update()
+				self.progressbar["value"] = percent
+				self.progressbar.update()
 				#self.Progress.set("Progress: " + str(percent/10) + '%')
 			except queue.Empty:
 				pass	
@@ -771,17 +934,15 @@ class OCR_Project(Frame):
 				Status = self.Status_Queue.get(0)
 				if Status != None:
 					self.Write_Debug(Status)
-					self.Debugger.insert("end", "\n\r")
-					self.Debugger.insert("end", Status)
-					self.Debugger.yview(END)
+					
 			except queue.Empty:
 				pass	
 			self.after(DELAY1, self.Wait_For_BadWord_Process)
 		else:
 			try:
 				percent = self.Process_Queue.get(0)
-				self.BadWord_Progressbar["value"] = percent
-				self.BadWord_Progressbar.update()
+				self.progressbar["value"] = percent
+				self.progressbar.update()
 				#self.Progress.set("Progress: " + str(percent/10) + '%')
 			except queue.Empty:
 				pass
@@ -790,28 +951,256 @@ class OCR_Project(Frame):
 				if Status != None:	
 					self.Write_Debug('Bad word check is completed')
 					#print(Status)
-					self.Debugger.insert("end", "\n\r")
-					self.Debugger.insert("end", Status)
-					self.Debugger.yview(END)
 			except queue.Empty:
 				pass
 			self.BadWord_Check_Process.terminate()
 
 ###########################################################################################
+# OCR Setting
+###########################################################################################
+
+	def Btn_Select_Tesseract_Path(self):
+		filename = filedialog.askopenfilename(title =  self.LanguagePack.ToolTips['SelectDB'],filetypes = (("Executable files","*.exe" ), ), )	
+		if os.path.isfile(filename):
+			_tess_path = self.CorrectPath(filename)
+			self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'tess_path', _tess_path, True)
+			pytesseract.pytesseract.tesseract_cmd = _tess_path
+			self.TesseractPath.set(_tess_path)
+		else:
+			self.Write_Debug(self.LanguagePack.ToolTips['TessNotSelect'])
+
+	def Btn_Select_Tesseract_Data_Path(self):
+		folder_name = filedialog.askdirectory(title =  self.LanguagePack.ToolTips['SelectSource'],)	
+		if os.path.isdir(folder_name):
+			folder_name = self.CorrectPath(folder_name)
+			self.TesseractDataPath.set(folder_name)
+
+			self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'tess_data', folder_name, True)
+
+			self.Write_Debug(self.LanguagePack.ToolTips['DataSelected'] + ": " + folder_name)
+		else:
+			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
+		
+
+	def OCR_Setting_Set_Working_Resolution(self):
+		_resolution_index = self.Resolution.get()
+		if _resolution_index == 1:
+			self.WorkingResolution = 720
+		else:
+			self.WorkingResolution = 1080
+		
+		self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'resolution', _resolution_index)
+
+		self.Write_Debug(self.LanguagePack.ToolTips['SetResolution'] + str(self.WorkingResolution) + 'p')
+
+	def OCR_Setting_Set_Working_Language(self, select_value):
+		print('Update value', select_value)
+		#_working_language = self.WorkingLanguage.get()
+		
+		self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'scan_lang', select_value)
+
+				
+
+###########################################################################################
 # Process function
 ###########################################################################################
 
-def Function_BadWord_Execute():
+def Function_Batch_OCR_Execute(
+	Result_Queue, Status_Queue, Process_Queue, tess_path, tess_language, tess_data, image_files, result_file, ratio, scan_areas, **kwargs):
+	
+	advanced_tessdata_dir_config = '--psm 7 --tessdata-dir ' + '"' + tess_data + '"'
 
-	return
+	if tess_language == '':
+		tess_language = 'kor'
+	Status_Queue.put('Scan language: ' + tess_language)
 
-def Function_AutoTest():
+	number_of_processes = multiprocessing.cpu_count()
 
-	return	
+	_task_list = []
+	processes = []
+	for image in image_files:
+		str_filename = str(image)
+		_task_list.append(str_filename)
+
+	_total = len(_task_list)
+	_complete = 0
+	while len(_task_list) > 0:
+		if len(_task_list) > number_of_processes:
+			_new_task_count = number_of_processes
+		else:
+			_new_task_count = len(_task_list)
+
+		for w in range(_new_task_count):
+
+			input_file = _task_list[0]
+
+			p = Process(target=Get_Text_From_Single_Image, args=(tess_path, tess_language, advanced_tessdata_dir_config, input_file, ratio, scan_areas, result_file,))
+
+			del _task_list[0]
+			processes.append(p)
+			p.start()
+
+		for p in processes :
+			p.join()
+			_complete+=1
+		
+		percent = ShowProgress(_complete, _total)
+		Process_Queue.put(percent)
+
+	Status_Queue.put('Optimized done.')
+
+
+def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_config, input_image, ratio, scan_areas, result_file,):
+
+	pytesseract.pytesseract.tesseract_cmd = tess_path
+
+	_img = Load_Image_by_Ratio(input_image, ratio)
+
+	_result = []
+
+	for area in scan_areas:
+		imCrop = _img[int(area[1]):int(area[1]+area[3]), int(area[0]):int(area[0]+area[2])]
+		imCrop = Function_Pre_Processing_Image(imCrop)
+		ocr = Get_Text(imCrop, tess_language, advanced_tessdata_dir_config)
+		_result.append(ocr)
+
+	baseName = os.path.basename(input_image)
+	file_name = os.path.splitext(baseName)[0]
+	while True:
+		try:
+			with open(result_file, 'w', newline='', encoding='utf-8-sig') as csvfile:
+				writer = csv.writer(csvfile)
+				writer.writerow([file_name] + _result)
+				break
+		except PermissionError:
+			continue
+
+def Function_Batch_OCR_Execute_Old(
+	Status_Queue, Process_Queue, tess_path, tess_language, test_data, image_files, result_file, ratio, scan_areas, **kwargs):
+	pytesseract.pytesseract.tesseract_cmd = tess_path
+	tessdata_dir_config = '--tessdata-dir ' + '"' + test_data + '"'
+	advanced_tessdata_dir_config = '--psm 7 --tessdata-dir ' + '"' + test_data + '"'
+
+	if tess_language == '':
+		tess_language = 'kor'
+	Status_Queue.put('Scan language: ' + tess_language)
+	_result = []
+	_counter = 0
+	_total = len(image_files)
+	with open(result_file, 'w', newline='', encoding='utf-8-sig') as csvfile:
+		
+		writer = csv.writer(csvfile)
+		for image in image_files:
+			_result = []
+			_img = cv2.imread(image)
+			(_h, _w) = _img.shape[:2]
+			_ratio = ratio / _h
+			if _ratio != 1:
+				width = int(_img.shape[1] * _ratio)
+				height = int(_img.shape[0] * _ratio)
+				dim = (width, height)
+				_img = cv2.resize(_img, dim, interpolation = cv2.INTER_AREA)
+
+			baseName = os.path.basename(image)
+			file_name, _ext_name = os.path.splitext(baseName)
+
+			for area in scan_areas:
+				imCrop = _img[int(area[1]):int(area[1]+area[3]), int(area[0]):int(area[0]+area[2])]
+				imCrop = Function_Pre_Processing_Image(imCrop)
+				ocr = Get_Text(imCrop, tess_language, advanced_tessdata_dir_config)
+				_result.append(ocr)
+
+			_counter+=1	
+			writer.writerow([file_name] + _result)
+			Process_Queue.put(int(_counter*1000/_total))
+			Status_Queue.put(str([file_name] + _result))
+
+	print('Done')
+
+
+def Function_Preview_Scan(
+	Result_Queue, Process_Queue, tess_path, tess_language, test_data, image_files, ratio, scan_areas, **kwargs):
+	pytesseract.pytesseract.tesseract_cmd = tess_path
+	tessdata_dir_config = '--tessdata-dir ' + '"' + test_data + '"'
+	if tess_language == '':
+		tess_language = 'kor'
+	
+	_result = []
+	_counter = 0
+	_total = len(scan_areas)
+	_result = []
+
+	_img = Load_Image_by_Ratio(image_files, ratio)
+
+
+	for area in scan_areas:
+		imCrop = _img[int(area[1]):int(area[1]+area[3]), int(area[0]):int(area[0]+area[2])]
+		imCrop = Function_Pre_Processing_Image(imCrop)
+		
+		ocr = Get_Text(imCrop, tess_language, tessdata_dir_config)
+	
+		_result.append(ocr)
+		_counter+=1	
+		Process_Queue.put(int(_counter*1000/_total))
+
+	Result_Queue.put(_result)
+
+def Load_Image_by_Ratio(image_path, resolution):
+	
+	_img = cv2.imread(image_path)
+	
+	(_h, _w) = _img.shape[:2]
+	
+	_ratio = resolution / _h
+	if _ratio != 1:
+		width = int(_img.shape[1] * _ratio)
+		height = int(_img.shape[0] * _ratio)
+		dim = (width, height)
+		_img = cv2.resize(_img, dim, interpolation = cv2.INTER_AREA)
+	
+	return _img
+
+def Get_Text(img, tess_language, tessdata_dir_config):
+	ocr = pytesseract.image_to_string(img, lang = tess_language, config=tessdata_dir_config)
+	ocr = ocr.replace("\n", "")
+	ocr = ocr.replace("\r", "")  
+	ocr = ocr.replace("\x0c", "") 
+	return ocr
+
+def Function_Pre_Processing_Image(img):
+	img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+	img = cv2.resize(img, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
+	img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+	img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR)
+	#img = cv2.blur(img,(5,5))
+	#img = cv2.GaussianBlur(img, (5, 5), 0)
+	#img = cv2.medianBlur(img, 3)
+	#img = cv2.bilateralFilter(img,9,75,75)
+	#cv2.threshold(img,127,255,cv2.THRESH_BINARY)
+	img = image_smoothening(img)
+
+	return	img
+
+def image_smoothening(img):
+	BINARY_THREHOLD = 100
+	ret1, th1 = cv2.threshold(img, BINARY_THREHOLD, 255, cv2.THRESH_BINARY)
+	ret2, th2 = cv2.threshold(th1, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+	#blur = cv2.GaussianBlur(th2, (1, 1), 0)
+	ret3, th3 = cv2.threshold(th2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+	return th3
+
+
+def ShowProgress(Counter, TotalProcess):
+	#os.system('CLS') 
+	percent = int(1000 * Counter / TotalProcess)
+	#print("Current progress: " +  str(Counter) + '/ ' + str(TotalProcess))
+	return percent
 
 ###########################################################################################
 # Main loop
 ###########################################################################################
+
+
 
 def main():
 	Process_Queue = Queue()
