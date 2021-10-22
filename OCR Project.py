@@ -1063,7 +1063,7 @@ def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_c
 		imCrop = Function_Pre_Processing_Image(imCrop)
 		ocr = Get_Text(imCrop, tess_language, advanced_tessdata_dir_config)
 		_result.append(ocr)
-
+	print('Scan result:', _result)
 	baseName = os.path.basename(input_image)
 	file_name = os.path.splitext(baseName)[0]
 	while True:
