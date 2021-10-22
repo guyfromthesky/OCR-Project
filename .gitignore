@@ -8,3 +8,8 @@ __pycache__
 *.pyc
 pyvenv.cfg
 *.spec
+*.jpg
+*.csv
+pyvenv.cfg
+pyvenv.cfg
+pyvenv.cfg

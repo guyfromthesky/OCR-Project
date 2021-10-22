@@ -42,9 +42,6 @@ from libs.tkinter_extension import AutocompleteCombobox
 
 import cv2
 import numpy as np
-
-from PIL import Image
-
 import pytesseract
 
 #from document_toolkit_function.py import *
@@ -101,7 +98,7 @@ class OCR_Project(Frame):
 
 		self.OCR_File_Path = None
 
-		self.Path_Size = 80
+		self.Path_Size = 60
 
 		self.init_App_Setting()
 		
@@ -125,15 +122,7 @@ class OCR_Project(Frame):
 		self.Notice = StringVar()
 		self.Debug = StringVar()
 		self.Progress = StringVar()
-	
-		self.basePath = os.path.abspath(os.path.dirname(sys.argv[0]))
-		self.ExceptionPath = self.basePath + "\\Exception.xlsx"
-		try:
-			self.ExceptionList = self.ImportException(self.ExceptionPath)
-			print('My exception list: ', self.ExceptionList)
-		except:
-			self.ExceptionList = []
-		
+			
 		#Generate UI
 		self.Generate_Menu_UI()
 		self.Generate_Tab_UI()
@@ -231,9 +220,9 @@ class OCR_Project(Frame):
 
 		Label(Tab, text= self.LanguagePack.Label['BrowseType']).grid(row=Row, column=6, rowspan=2, pady=5, sticky=W)
 
-		self.ocr_data_select_type = IntVar()
-		Radiobutton(Tab, width= 15, text=  self.LanguagePack.Option['Folder'], value=1, variable=self.ocr_data_select_type).grid(row=Row, column=7,columnspan=2,padx=0, pady=5, sticky=W)
-		self.ocr_data_select_type.set(1)
+		
+		Radiobutton(Tab, width= 15, text=  self.LanguagePack.Option['Folder'], value=1, variable=self.Browse_Type, command=self.OCR_Setting_Set_Browse_Type).grid(row=Row, column=7,columnspan=2,padx=0, pady=5, sticky=W)
+	
 
 
 		
@@ -256,7 +245,7 @@ class OCR_Project(Frame):
 		self.Btn_Update_Area.grid(row=Row, column=5, padx=5, pady=5, sticky=W)
 		self.Btn_Update_Area.configure(state=DISABLED)
 
-		Radiobutton(Tab, width= 15, text= self.LanguagePack.Option['File'], value=2, variable=self.ocr_data_select_type).grid(row=Row, column=7,columnspan=2, padx=0, pady=5, sticky=W)
+		Radiobutton(Tab, width= 15, text= self.LanguagePack.Option['File'], value=2, variable=self.Browse_Type, command=self.OCR_Setting_Set_Browse_Type).grid(row=Row, column=7,columnspan=2, padx=0, pady=5, sticky=W)
 		
 		
 		Row+=1
@@ -315,8 +304,9 @@ class OCR_Project(Frame):
 
 		Row+=1
 
-		Btn_Execute = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['Scan'], command= None)
+		Btn_Execute = Button(Tab, width = self.Button_Width_Half, text= "Place Holder", command= None)
 		Btn_Execute.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+		Btn_Execute.configure(state=DISABLED)
 
 		Row+=1
 		Label(Tab, text= self.LanguagePack.Label['Debug']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
@@ -329,12 +319,18 @@ class OCR_Project(Frame):
 		Radiobutton(Tab, width= 10, text=  '720p', value=1, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=2, padx=0, pady=5, sticky=W)
 		Radiobutton(Tab, width= 10, text=  '1080p', value=2, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=3, padx=0, pady=5, sticky=W)
 	
+	
+		GachaAnalyzeEnable = Checkbutton(Tab, text=  self.LanguagePack.Option['GachaScan'], variable = self.GachaAnalyze, command=self.OCR_Setting_Set_Gacha_Analyze)
+		GachaAnalyzeEnable.grid(row=Row, column=4,padx=0, pady=5, sticky=W)
+
 		Row += 1
 		Label(Tab, text= self.LanguagePack.Label['WorkingLang']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-		
 		self.option_working_language = OptionMenu(Tab, self.WorkingLanguage, *self.language_list, command = self.OCR_Setting_Set_Working_Language)
 		self.option_working_language.config(width=self.Button_Width_Full)
 		self.option_working_language.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
+
+	
+
 
 		Row+=1
 		Label(Tab, text= self.LanguagePack.Label['Progress']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
@@ -455,8 +451,14 @@ class OCR_Project(Frame):
 		self.TesseractDataPath = StringVar()
 		self.WorkingLanguage = StringVar()
 
+		self.Browse_Type = IntVar()
+
 		self.Resolution = IntVar()
 		self.CurrentDataSource = StringVar()
+
+
+		self.GachaAnalyze = IntVar()
+
 		self.Notice = StringVar()
 
 		self.AppConfig = ConfigLoader()
@@ -483,8 +485,14 @@ class OCR_Project(Frame):
 			print('Error when getting language:', e)
 			self.language_list = ['']
 
+		_browse_type = self.Configuration['OCR_TOOL']['browsetype']
+		self.Browse_Type.set(_browse_type)
+
 		_resolution = self.Configuration['OCR_TOOL']['resolution']
 		self.Resolution.set(_resolution)
+
+		_gacha_scan = self.Configuration['OCR_TOOL']['gachascan']
+		self.GachaAnalyze.set(_gacha_scan)
 		
 	def init_UI_Data(self):
 		_working_language = self.Configuration['OCR_TOOL']['scan_lang']
@@ -608,7 +616,7 @@ class OCR_Project(Frame):
 		
 		self.Btn_Open_Result.configure(state=DISABLED)
 		
-		_select_type = self.ocr_data_select_type.get()
+		_select_type = self.Browse_Type.get()
 		if _select_type == 1:
 			self.Btn_OCR_Browse_Image_Folder()
 		else:
@@ -864,52 +872,23 @@ class OCR_Project(Frame):
 
 		self.Btn_Open_Result.configure(state=NORMAL)
 
-		self.BadWord_Check_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas, ))
+		_gacha_analyze = self.GachaAnalyze.get()
+		if _gacha_analyze == 1:
+			gacha_analyze = True
+		else:
+			gacha_analyze = False
+
+		self.OCR_Scan_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas, gacha_analyze, ))
 		
-		self.BadWord_Check_Process.start()
-		
-		self.progressbar["value"] = 0
-		self.progressbar.update()
-
-		self.after(DELAY1, self.Wait_For_BadWord_Process)
-
-	def Btn_OCR_Execute_Old(self):
-		'''
-		Execute main function
-		'''
-		Image_Files = self.OCR_File_Path
-		Image_Folder =  os.path.dirname( self.OCR_File_Path[0])
-
-		timestamp = self.Function_Get_TimeStamp()			
-		self.Output_Result_Folder = Image_Folder + '/' + 'Scan_Result_' + str(timestamp)
-		if not os.path.isdir(self.Output_Result_Folder):
-			os.mkdir(self.Output_Result_Folder)
-		output_result_file = self.Output_Result_Folder + '/result.csv'
-		_ratio = 720	
-		_scan_areas = []
-		for row in self.Treeview.get_children():
-			child = self.Treeview.item(row)
-			_scan_areas.append(child['values'])
-
-		_tess_data = self.TesseractDataPath.get()
-		_tess_path = self.TesseractPath.get()
-		
-
-		_tess_language = self.WorkingLanguage.get()
-
-		self.Btn_Open_Result.configure(state=NORMAL)
-
-		self.BadWord_Check_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas, ))
-		
-		self.BadWord_Check_Process.start()
+		self.OCR_Scan_Process.start()
 		
 		self.progressbar["value"] = 0
 		self.progressbar.update()
 
-		self.after(DELAY1, self.Wait_For_BadWord_Process)		
+		self.after(DELAY1, self.Wait_For_OCR_Process)
 
-	def Wait_For_BadWord_Process(self):
-		if (self.BadWord_Check_Process.is_alive()):
+	def Wait_For_OCR_Process(self):
+		if (self.OCR_Scan_Process.is_alive()):
 			
 			try:
 				percent = self.Process_Queue.get(0)
@@ -926,23 +905,25 @@ class OCR_Project(Frame):
 					
 			except queue.Empty:
 				pass	
-			self.after(DELAY1, self.Wait_For_BadWord_Process)
+			self.after(DELAY1, self.Wait_For_OCR_Process)
 		else:
-			try:
-				percent = self.Process_Queue.get(0)
-				self.progressbar["value"] = percent
-				self.progressbar.update()
-				#self.Progress.set("Progress: " + str(percent/10) + '%')
-			except queue.Empty:
-				pass
-			try:
-				Status = self.Status_Queue.get(0)
-				if Status != None:	
-					self.Write_Debug('Bad word check is completed')
-					#print(Status)
-			except queue.Empty:
-				pass
-			self.BadWord_Check_Process.terminate()
+			while True:
+				try:
+					percent = self.Process_Queue.get(0)
+					self.progressbar["value"] = percent
+					self.progressbar.update()
+				except queue.Empty:
+					break
+			while True:
+				try:
+					Status = self.Status_Queue.get(0)
+					if Status != None:	
+						self.Write_Debug('Bad word check is completed')
+						#print(Status)
+				except queue.Empty:
+					break
+			self.OCR_Scan_Process.terminate()
+			self.Write_Debug(self.LanguagePack.ToolTips['Completed'])
 
 ###########################################################################################
 # OCR Setting
@@ -971,6 +952,28 @@ class OCR_Project(Frame):
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
 		
 
+	def OCR_Setting_Set_Gacha_Analyze(self):
+		_gacha_analyze = self.GachaAnalyze.get()
+		if _gacha_analyze == 1:
+			_status = 'enabled'
+		else:
+			_status = 'disabled'
+		
+		self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'gachascan', _gacha_analyze)
+
+		self.Write_Debug(self.LanguagePack.ToolTips['AnalyzeGachaResult'] + str(_status))
+
+	def OCR_Setting_Set_Browse_Type(self):
+		_browse_type = self.Browse_Type.get()
+		if _browse_type == 1:
+			_status = 'folder'
+		else:
+			_status = 'file'
+		
+		self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'browsetype', _browse_type)
+
+		self.Write_Debug(self.LanguagePack.ToolTips['BrowseTypeUpdate'] + str(_status))
+
 	def OCR_Setting_Set_Working_Resolution(self):
 		_resolution_index = self.Resolution.get()
 		if _resolution_index == 1:
@@ -983,19 +986,18 @@ class OCR_Project(Frame):
 		self.Write_Debug(self.LanguagePack.ToolTips['SetResolution'] + str(self.WorkingResolution) + 'p')
 
 	def OCR_Setting_Set_Working_Language(self, select_value):
-		print('Update value', select_value)
-		#_working_language = self.WorkingLanguage.get()
 		
 		self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'scan_lang', select_value)
-
-				
+		
+		self.Write_Debug(self.LanguagePack.ToolTips['SetScanLanguage'] + str(select_value))
+	
 
 ###########################################################################################
-# Process function
+# Process function - Batch scan
 ###########################################################################################
 
 def Function_Batch_OCR_Execute(
-	Result_Queue, Status_Queue, Process_Queue, tess_path, tess_language, tess_data, image_files, result_file, ratio, scan_areas, **kwargs):
+	Result_Queue, Status_Queue, Process_Queue, tess_path, tess_language, tess_data, image_files, result_file, ratio, scan_areas, gacha_analyze, **kwargs):
 	
 	advanced_tessdata_dir_config = '--psm 7 --tessdata-dir ' + '"' + tess_data + '"'
 
@@ -1011,8 +1013,19 @@ def Function_Batch_OCR_Execute(
 		str_filename = str(image)
 		_task_list.append(str_filename)
 
-	_total = len(_task_list)
+	if gacha_analyze:
+		_total = int(len(_task_list) * 1.1)
+	else:
+		_total = len(_task_list)	
+
 	_complete = 0
+	Area_Name = ['Area_' + str(i) for i in range(len(scan_areas))]
+	Title = ['FileName'] + Area_Name
+
+	with open(result_file, 'w', newline='', encoding='utf-8-sig') as csvfile:
+		writer = csv.writer(csvfile)
+		writer.writerow(Title)
+	
 	while len(_task_list) > 0:
 		if len(_task_list) > number_of_processes:
 			_new_task_count = number_of_processes
@@ -1036,8 +1049,10 @@ def Function_Batch_OCR_Execute(
 		percent = ShowProgress(_complete, _total)
 		Process_Queue.put(percent)
 
-	Status_Queue.put('Optimized done.')
-
+	if gacha_analyze:
+		Function_Analyze_Gacha_Data(result_file, Area_Name)
+		percent = ShowProgress(_total, _total)
+		Process_Queue.put(percent)
 
 def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_config, input_image, ratio, scan_areas, result_file,):
 
@@ -1052,7 +1067,7 @@ def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_c
 		imCrop = Function_Pre_Processing_Image(imCrop)
 		ocr = Get_Text(imCrop, tess_language, advanced_tessdata_dir_config)
 		_result.append(ocr)
-	print(_result)
+	#print(_result)
 	baseName = os.path.basename(input_image)
 	file_name = os.path.splitext(baseName)[0]
 	while True:
@@ -1064,48 +1079,32 @@ def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_c
 		except PermissionError:
 			continue
 
-def Function_Batch_OCR_Execute_Old(
-	Status_Queue, Process_Queue, tess_path, tess_language, test_data, image_files, result_file, ratio, scan_areas, **kwargs):
-	pytesseract.pytesseract.tesseract_cmd = tess_path
-	tessdata_dir_config = '--tessdata-dir ' + '"' + test_data + '"'
-	advanced_tessdata_dir_config = '--psm 7 --tessdata-dir ' + '"' + test_data + '"'
+def Function_Analyze_Gacha_Data(_raw_data, col_name):
+	_output_dir = os.path.dirname(_raw_data)
+	analyze_result_file = _output_dir + "/analyze_result.csv"
+	_gacha = {}
+	
+	with open(_raw_data, newline='', encoding='utf-8-sig') as csvfile:
+		reader = csv.DictReader(csvfile)
+		for row in reader:
+			for component in col_name:
+				component_name = row[component]
+				if component_name in _gacha:
+					_gacha[component_name] +=1
+				else:
+					_gacha[component_name] =1
 
-	if tess_language == '':
-		tess_language = 'kor'
-	Status_Queue.put('Scan language: ' + tess_language)
-	_result = []
-	_counter = 0
-	_total = len(image_files)
-	with open(result_file, 'w', newline='', encoding='utf-8-sig') as csvfile:
-		
-		writer = csv.writer(csvfile)
-		for image in image_files:
-			_result = []
-			_img = cv2.imread(image)
-			(_h, _w) = _img.shape[:2]
-			_ratio = ratio / _h
-			if _ratio != 1:
-				width = int(_img.shape[1] * _ratio)
-				height = int(_img.shape[0] * _ratio)
-				dim = (width, height)
-				_img = cv2.resize(_img, dim, interpolation = cv2.INTER_AREA)
+	with open(analyze_result_file, 'a', newline='', encoding='utf-8-sig') as csvfile:
+		fieldnames = ['Components', 'Amount']
+		writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+		writer.writeheader()
+		for component in _gacha:
+			writer.writerow({'Components': component, 'Amount': _gacha[component]})
+	print('Analyze done')			
 
-			baseName = os.path.basename(image)
-			file_name, _ext_name = os.path.splitext(baseName)
-
-			for area in scan_areas:
-				imCrop = _img[int(area[1]):int(area[1]+area[3]), int(area[0]):int(area[0]+area[2])]
-				imCrop = Function_Pre_Processing_Image(imCrop)
-				ocr = Get_Text(imCrop, tess_language, advanced_tessdata_dir_config)
-				_result.append(ocr)
-
-			_counter+=1	
-			writer.writerow([file_name] + _result)
-			Process_Queue.put(int(_counter*1000/_total))
-			Status_Queue.put(str([file_name] + _result))
-
-	print('Done')
-
+###########################################################################################
+# Process function - Preview scan
+###########################################################################################
 
 def Function_Preview_Scan(
 	Result_Queue, Process_Queue, tess_path, tess_language, test_data, image_files, ratio, scan_areas, **kwargs):

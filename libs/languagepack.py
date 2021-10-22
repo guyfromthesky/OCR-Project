@@ -86,7 +86,7 @@ class LanguagePackEN:
 	Option['Folder'] = "Folder"
 	Option['File'] = "File"
 
-	
+	Option['GachaScan'] = "Gacha Scan"
 
 	Label = {}
 	Label['Language'] = "Target: "
@@ -180,8 +180,8 @@ class LanguagePackEN:
 
 	Label['TesseractPath'] = "Tesseract path:"
 	Label['TesseractDataPath'] = "Tesseract data:"
-	Label['WorkingRes'] = "Working Resolution:"
-	Label['WorkingLang'] = "Working language:"
+	Label['WorkingRes'] = "Resolution:"
+	Label['WorkingLang'] = "Language:"
 
 	Tab = {}
 	Tab['Main'] = "Main Menu"
@@ -279,8 +279,13 @@ class LanguagePackEN:
 
 	ToolTips['DataSelected'] = "Image file selected"
 
-	ToolTips['SetResolution'] = "Working resolution has been set to: "
+	ToolTips['SetResolution'] = "Working resolution has been set to "
+	ToolTips['SetScanLanguage'] = "Scan language has been set to "
+	ToolTips['AnalyzeGachaResult'] = "Analyze Gacha result is "
+	ToolTips['BrowseTypeUpdate'] = "Browse type has been set to "
 	ToolTips['TessNotSelect'] = "Tesseract is not selected!"
+
+	ToolTips['Completed'] = "Completed"
 
 	Notice = {}
 
@@ -338,6 +343,13 @@ class LanguagePackKR:
 	Button['SaveConfig'] = "구성 저장"
 	Button['Scan'] = "주사"
 
+	Button['GetTitle'] = "타이틀 받기"	
+	Button['Reset'] = "초기화"	
+	Button['Load'] = "하중"	
+	Button['Save'] = "저장"	
+	Button['GetReport'] = "보고서 받기"	
+
+
 	Option = {}
 	Option['TranslateFileName'] = "파일 이름 변환"
 	Option['UpdateTMFile'] = "메모리 파일 업데이트"
@@ -363,15 +375,14 @@ class LanguagePackKR:
 	Option['Bold'] = "굵게"
 	Option['UnderLine'] = "밑줄"
 
-	Button['GetTitle'] = "타이틀 받기"	
-	Button['Reset'] = "초기화"	
-	Button['Load'] = "하중"	
-	Button['Save'] = "저장"	
-	Button['GetReport'] = "보고서 받기"	
-
 	Option['Folder'] = "폴더"
 	Option['File'] = "파일"
 
+	Option['GachaScan'] = "가챠 스캔"
+
+	
+
+	
 
 	Label = {}
 	Label['Language'] = "대상 언어"
@@ -465,8 +476,8 @@ class LanguagePackKR:
 
 	Label['TesseractPath'] = "테서랙트 경로:"
 	Label['TesseractDataPath'] = "테서랙트 데이터:"
-	Label['WorkingRes'] = "작동 해상도:"
-	Label['WorkingLang'] = "작업 언어:"
+	Label['WorkingRes'] = "해결:"
+	Label['WorkingLang'] = "언어:"
 
 	Tab = {}
 	Tab['Main'] = "메인 메뉴"
@@ -564,7 +575,11 @@ class LanguagePackKR:
 
 	ToolTips['DataSelected'] = "이미지 파일 선택됨"
 
-	ToolTips['SetResolution'] = "작업 해상도가 다음으로 설정되었습니다: "
+	ToolTips['SetResolution'] = "작업 해상도가 다음으로 설정되었습니다 "
+	ToolTips['SetScanLanguage'] = "스캔 언어가 다음으로 설정되었습니다 "
+	ToolTips['AnalyzeGachaResult'] = "Gacha 결과 분석 "
+	ToolTips['BrowseTypeUpdate'] = "찾아보기 유형이 다음으로 설정되었습니다."
 	ToolTips['TessNotSelect'] = "Tesseract가 선택되지 않았습니다!"
 
+	ToolTips['Completed'] = "완전한"
 	Notice = {}
