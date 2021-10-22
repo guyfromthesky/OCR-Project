@@ -1,7 +1,7 @@
 __pycache__
 /Lib
 /Include
-/Script
+/Scripts
 /Tesseract-OCR
 *.pyc
 *.jpg
