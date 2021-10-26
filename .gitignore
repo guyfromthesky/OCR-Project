@@ -1,3 +1,4 @@
-
 *.jpg
 *.csv
+/Lib
+/Scripts
