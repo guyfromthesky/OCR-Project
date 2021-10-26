@@ -58,6 +58,8 @@ class LanguagePackEN:
 	Button['SaveConfig'] = "Save Config"
 	Button['Scan'] = "Scan"
 
+	Button['UpdateLanguage'] = "Get Language"
+
 	Option = {}
 	Option['TranslateFileName'] = "Translate file name"
 	Option['UpdateTMFile'] = "Update TM file"
@@ -342,6 +344,8 @@ class LanguagePackKR:
 	Button['PreviewArea'] = "시사"
 	Button['SaveConfig'] = "구성 저장"
 	Button['Scan'] = "주사"
+
+	Button['UpdateLanguage'] = "언어 가져오기"
 
 	Button['GetTitle'] = "타이틀 받기"	
 	Button['Reset'] = "초기화"	

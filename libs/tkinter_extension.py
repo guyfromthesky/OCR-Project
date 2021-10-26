@@ -8,6 +8,8 @@ from tkinter import Text, IntVar, StringVar
 import re
 
 class AutocompleteCombobox(Combobox):
+	def __init__(self, *args, **kwargs):
+		Combobox.__init__(self, *args, **kwargs)
 
 	def set_completion_list(self, completion_list):
 		"""Use our completion list as our drop down selection menu, arrows move through menu."""

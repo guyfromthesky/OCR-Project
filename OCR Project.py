@@ -14,6 +14,7 @@ import subprocess
 #Get timestamp
 import time
 from datetime import datetime
+from tkinter.constants import COMMAND
 #function difination
 
 from urllib.parse import urlparse
@@ -23,7 +24,7 @@ from tkinter.ttk import Entry, Label, Treeview, Scrollbar, OptionMenu
 from tkinter.ttk import Checkbutton, Button, Notebook, Radiobutton
 from tkinter.ttk import Progressbar, Style
 
-from tkinter import Tk, Frame
+from tkinter import Tk, Frame, Variable
 from tkinter import Menu, filedialog, messagebox
 from tkinter import Text, colorchooser
 from tkinter import IntVar, StringVar
@@ -50,7 +51,7 @@ DELAY1 = 20
 
 ToolDisplayName = "OCR Project"
 tool_name = 'ocr'
-rev = 1000
+rev = 1001
 a,b,c,d = list(str(rev))
 VerNum = a + '.' + b + '.' + c + chr(int(d)+97)
 
@@ -304,9 +305,9 @@ class OCR_Project(Frame):
 
 		Row+=1
 
-		Btn_Execute = Button(Tab, width = self.Button_Width_Half, text= "Place Holder", command= None)
-		Btn_Execute.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
-		Btn_Execute.configure(state=DISABLED)
+		Btn_Update_Language = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['UpdateLanguage'], command= self.Btn_OCR_Update_Working_Language)
+		Btn_Update_Language.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+		#Btn_Execute.configure(state=DISABLED)
 
 		Row+=1
 		Label(Tab, text= self.LanguagePack.Label['Debug']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
@@ -325,12 +326,23 @@ class OCR_Project(Frame):
 
 		Row += 1
 		Label(Tab, text= self.LanguagePack.Label['WorkingLang']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		
+		self.option_working_language = AutocompleteCombobox(Tab)
+		self.option_working_language.Set_Entry_Width(self.Button_Width_Full)
+		self.option_working_language.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
+		
+		'''
 		self.option_working_language = OptionMenu(Tab, self.WorkingLanguage, *self.language_list, command = self.OCR_Setting_Set_Working_Language)
 		self.option_working_language.config(width=self.Button_Width_Full)
 		self.option_working_language.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
 
-	
+		self.ProjectList = AutocompleteCombobox(Tab)
+		self.ProjectList.Set_Entry_Width(30)
+		self.ProjectList.set_completion_list([])
+		if self.glossary_id != None:
+			self.ProjectList.set(self.glossary_id)
 
+		'''
 
 		Row+=1
 		Label(Tab, text= self.LanguagePack.Label['Progress']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
@@ -418,7 +430,7 @@ class OCR_Project(Frame):
 ###########################################################################################
 
 	def Menu_Function_About(self):
-		messagebox.showinfo("About....", "Creator: Evan")
+		messagebox.showinfo("About....", "Designer: Mr. 박찬혁\r\nDeveloper: Evan")
 
 	def Show_Error_Message(self, ErrorText):
 		messagebox.showinfo('Error...', ErrorText)	
@@ -495,9 +507,12 @@ class OCR_Project(Frame):
 		self.GachaAnalyze.set(_gacha_scan)
 		
 	def init_UI_Data(self):
+		self.Btn_OCR_Update_Working_Language()
 		_working_language = self.Configuration['OCR_TOOL']['scan_lang']
 		print('Working language:', _working_language)
-		self.WorkingLanguage.set(_working_language)
+		self.option_working_language.set(_working_language)
+		#self.WorkingLanguage.set(_working_language)
+
 
 
 	def SaveSetting(self):
@@ -544,10 +559,7 @@ class OCR_Project(Frame):
 		event.widget.tk_focusNext().focus()
 		return("break")
 
-	def Function_Get_TimeStamp(self):		
-		now = datetime.now()
-		timestamp = str(int(datetime.timestamp(now)))			
-		return timestamp
+
 
 ###########################################################################################
 # OCR
@@ -834,6 +846,21 @@ class OCR_Project(Frame):
 				pass
 			self.BadWord_Check_Process.terminate()
 
+	def Btn_OCR_Update_Working_Language(self):
+		_data_ = self.TesseractDataPath.get()
+		_exe_ = self.TesseractPath.get()
+		_tessdata_dir_config = '--tessdata-dir ' + "\"" + _data_ + "\""
+		pytesseract.pytesseract.tesseract_cmd = _exe_
+		try:
+			self.language_list = pytesseract.get_languages(config=_tessdata_dir_config)
+			self.Write_Debug('Supported language list has been updated!')
+
+		except Exception as e:
+			self.Write_Debug('Error while updateing supported language: ' + str(e))
+			self.language_list = ['']
+
+		self.option_working_language.set_completion_list(self.language_list)
+
 
 	def Open_OCR_Result_Folder(self):
 
@@ -854,7 +881,7 @@ class OCR_Project(Frame):
 		Image_Files = self.OCR_File_Path
 		Image_Folder =  os.path.dirname( self.OCR_File_Path[0])
 
-		timestamp = self.Function_Get_TimeStamp()			
+		timestamp = Function_Get_TimeStamp()			
 		self.Output_Result_Folder = Image_Folder + '/' + 'Scan_Result_' + str(timestamp)
 		if not os.path.isdir(self.Output_Result_Folder):
 			os.mkdir(self.Output_Result_Folder)
@@ -867,8 +894,10 @@ class OCR_Project(Frame):
 
 		_tess_data = self.TesseractDataPath.get()
 		_tess_path = self.TesseractPath.get()
- 
-		_tess_language = self.WorkingLanguage.get()
+	
+		_tess_language = self.option_working_language.get()
+		self.OCR_Setting_Set_Working_Language(_tess_language)
+		#_tess_language = self.WorkingLanguage.get()
 
 		self.Btn_Open_Result.configure(state=NORMAL)
 
@@ -991,6 +1020,7 @@ class OCR_Project(Frame):
 		
 		self.Write_Debug(self.LanguagePack.ToolTips['SetScanLanguage'] + str(select_value))
 	
+	
 
 ###########################################################################################
 # Process function - Batch scan
@@ -1057,17 +1087,21 @@ def Function_Batch_OCR_Execute(
 def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_config, input_image, ratio, scan_areas, result_file,):
 
 	pytesseract.pytesseract.tesseract_cmd = tess_path
-
 	_img = Load_Image_by_Ratio(input_image, ratio)
-
 	_result = []
-
+	_output_dir = os.path.dirname(result_file)
+	baseName = os.path.basename(input_image)
+	sourcename = os.path.splitext(baseName)[0]
+	_area_count = 0
 	for area in scan_areas:
+		_area_count +=1
 		imCrop = _img[int(area[1]):int(area[1]+area[3]), int(area[0]):int(area[0]+area[2])]
 		imCrop = Function_Pre_Processing_Image(imCrop)
+		#_name = _output_dir + '\\' + sourcename + '_' + str(_area_count) + '.jpg'
+		#cv2.imwrite(_name, imCrop)
 		ocr = Get_Text(imCrop, tess_language, advanced_tessdata_dir_config)
 		_result.append(ocr)
-	#print(_result)
+	print(_result)
 	baseName = os.path.basename(input_image)
 	file_name = os.path.splitext(baseName)[0]
 	while True:
@@ -1100,7 +1134,14 @@ def Function_Analyze_Gacha_Data(_raw_data, col_name):
 		writer.writeheader()
 		for component in _gacha:
 			writer.writerow({'Components': component, 'Amount': _gacha[component]})
-	print('Analyze done')			
+	print('Analyze done')	
+
+def Get_Text(img, tess_language, tessdata_dir_config):
+	ocr = pytesseract.image_to_string(img, lang = tess_language, config=tessdata_dir_config)
+	ocr = ocr.replace("\n", "")
+	ocr = ocr.replace("\r", "")  
+	ocr = ocr.replace("\x0c", "") 
+	return ocr
 
 ###########################################################################################
 # Process function - Preview scan
@@ -1148,22 +1189,17 @@ def Load_Image_by_Ratio(image_path, resolution):
 	
 	return _img
 
-def Get_Text(img, tess_language, tessdata_dir_config):
-	ocr = pytesseract.image_to_string(img, lang = tess_language, config=tessdata_dir_config)
-	ocr = ocr.replace("\n", "")
-	ocr = ocr.replace("\r", "")  
-	ocr = ocr.replace("\x0c", "") 
-	return ocr
+
 
 def Function_Pre_Processing_Image(img):
 	img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-	img = cv2.resize(img, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
+	#img = cv2.resize(img, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
 	img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
 	img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR)
-	#img = cv2.blur(img,(5,5))
-	#img = cv2.GaussianBlur(img, (5, 5), 0)
-	#img = cv2.medianBlur(img, 3)
-	#img = cv2.bilateralFilter(img,9,75,75)
+	img = cv2.blur(img,(5,5))
+	img = cv2.GaussianBlur(img, (5, 5), 0)
+	img = cv2.medianBlur(img, 3)
+	img = cv2.bilateralFilter(img,9,75,75)
 	#cv2.threshold(img,127,255,cv2.THRESH_BINARY)
 	img = image_smoothening(img)
 
@@ -1184,6 +1220,11 @@ def ShowProgress(Counter, TotalProcess):
 	#print("Current progress: " +  str(Counter) + '/ ' + str(TotalProcess))
 	return percent
 
+def Function_Get_TimeStamp():		
+	now = datetime.now()
+	timestamp = str(int(datetime.timestamp(now)))			
+	return timestamp
+	
 ###########################################################################################
 # Main loop
 ###########################################################################################
