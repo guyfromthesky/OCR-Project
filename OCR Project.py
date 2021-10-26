@@ -35,6 +35,19 @@ from tkinter import DISABLED
 from tkinter import scrolledtext 
 from tkinter import simpledialog
 
+from openpyxl import load_workbook, Workbook
+from openpyxl.styles import Font
+from openpyxl.styles import PatternFill
+from openpyxl.styles import Color
+from openpyxl.styles import Color, PatternFill, Font
+
+from openpyxl.formatting.rule import ColorScaleRule, CellIsRule, FormulaRule
+from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.utils import get_column_letter, column_index_from_string
+
+from openpyxl.drawing.image import Image
+
 import webbrowser
 
 from libs.configmanager import ConfigLoader
@@ -51,7 +64,7 @@ DELAY1 = 20
 
 ToolDisplayName = "OCR Project"
 tool_name = 'ocr'
-rev = 1001
+rev = 1002
 a,b,c,d = list(str(rev))
 VerNum = a + '.' + b + '.' + c + chr(int(d)+97)
 
@@ -185,7 +198,9 @@ class OCR_Project(Frame):
 
 	#STABLE
 	def Generate_OCR_Tool_UI(self, Tab):
-		
+		'''
+		Create main tab
+		'''
 		Row=1
 		self.Str_OCR_Image_Path = StringVar()
 		Label(Tab, text=  self.LanguagePack.Label['ImageSource']).grid(row=Row, column=1, padx=5, pady=5, sticky= W)
@@ -220,17 +235,8 @@ class OCR_Project(Frame):
 		Btn_Input_Area.grid(row=Row, column=5, padx=5, pady=5, sticky=W)
 
 		Label(Tab, text= self.LanguagePack.Label['BrowseType']).grid(row=Row, column=6, rowspan=2, pady=5, sticky=W)
-
-		
 		Radiobutton(Tab, width= 15, text=  self.LanguagePack.Option['Folder'], value=1, variable=self.Browse_Type, command=self.OCR_Setting_Set_Browse_Type).grid(row=Row, column=7,columnspan=2,padx=0, pady=5, sticky=W)
 	
-
-
-		
-
-		#Btn_Input_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['AddAreaWithText'], command= self.Btn_OCR_Input_Area)
-		#Btn_Input_Area.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
-
 		Row+=1
 		Label(Tab, text= self.LanguagePack.Label['Height']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
 		self.Str_Height = Text(Tab, width=10, height=1) #
@@ -284,27 +290,19 @@ class OCR_Project(Frame):
 		Btn_Select_Area.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
 		
 		Row+=1
-		
 		Btn_Preview_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['PreviewArea'], command= self.Btn_OCR_Preview_Areas)
 		Btn_Preview_Area.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
-		
-		#Row+=1
-		#Btn_Preview_Scan = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['PreviewArea'], command= self.Btn_OCR_Preview_Scan)
-		#Btn_Preview_Scan.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
 
 		Row+=1
-
 		Btn_Save_Setting = Button(Tab, width = self.Button_Width_Half, text=  self.LanguagePack.Button['SaveConfig'], command= self.Btn_OCR_Save_Config_File)
 		Btn_Save_Setting.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
 
 		Row+=1
-
 		self.Btn_Open_Result = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['OpenOutput'], command= self.Open_OCR_Result_Folder)
 		self.Btn_Open_Result.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
 		self.Btn_Open_Result.configure(state=DISABLED)
 
 		Row+=1
-
 		Btn_Update_Language = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['UpdateLanguage'], command= self.Btn_OCR_Update_Working_Language)
 		Btn_Update_Language.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
 		#Btn_Execute.configure(state=DISABLED)
@@ -316,7 +314,6 @@ class OCR_Project(Frame):
 
 		Row += 1
 		Label(Tab, text= self.LanguagePack.Label['WorkingRes']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-	
 		Radiobutton(Tab, width= 10, text=  '720p', value=1, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=2, padx=0, pady=5, sticky=W)
 		Radiobutton(Tab, width= 10, text=  '1080p', value=2, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=3, padx=0, pady=5, sticky=W)
 	
@@ -326,24 +323,10 @@ class OCR_Project(Frame):
 
 		Row += 1
 		Label(Tab, text= self.LanguagePack.Label['WorkingLang']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-		
 		self.option_working_language = AutocompleteCombobox(Tab)
 		self.option_working_language.Set_Entry_Width(self.Button_Width_Full)
 		self.option_working_language.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
 		
-		'''
-		self.option_working_language = OptionMenu(Tab, self.WorkingLanguage, *self.language_list, command = self.OCR_Setting_Set_Working_Language)
-		self.option_working_language.config(width=self.Button_Width_Full)
-		self.option_working_language.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
-
-		self.ProjectList = AutocompleteCombobox(Tab)
-		self.ProjectList.Set_Entry_Width(30)
-		self.ProjectList.set_completion_list([])
-		if self.glossary_id != None:
-			self.ProjectList.set(self.glossary_id)
-
-		'''
-
 		Row+=1
 		Label(Tab, text= self.LanguagePack.Label['Progress']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
 		self.progressbar = Progressbar(Tab, orient=HORIZONTAL, length=800,  mode='determinate')
@@ -354,17 +337,26 @@ class OCR_Project(Frame):
 		Btn_Execute.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
 
 	def Generate_OCR_Setting_UI(self, Tab):
+		''''
+		Create Setting Tab
+		'''
 		Row = 1
 		Label(Tab, text= self.LanguagePack.Label['TesseractPath']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
 		self.Text_TesseractPath = Entry(Tab,width = 100, state="readonly", textvariable=self.TesseractPath)
 		self.Text_TesseractPath.grid(row=Row, column=3, columnspan=5, padx=5, pady=5, sticky=E+W)
-		Button(Tab, width = self.Button_Width_Full, text=  self.LanguagePack.Button['Browse'], command= self.Btn_Select_Tesseract_Path).grid(row=Row, column=8, columnspan=2, padx=5, pady=5, sticky=E)
+		Button(Tab, width = self.Button_Width_Full, text=  self.LanguagePack.Button['Browse'], command= self.Btn_Select_Tesseract_Path).grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=E)
 		
 		Row += 1
 		Label(Tab, text= self.LanguagePack.Label['TesseractDataPath']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
 		self.Text_TesseractDataPath = Entry(Tab,width = 100, state="readonly", textvariable=self.TesseractDataPath)
 		self.Text_TesseractDataPath.grid(row=Row, column=3, columnspan=5, padx=5, pady=5, sticky=E+W)
-		Button(Tab, width = self.Button_Width_Full, text=  self.LanguagePack.Button['Browse'], command= self.Btn_Select_Tesseract_Data_Path).grid(row=Row, column=8, columnspan=2, padx=5, pady=5, sticky=E)
+		Button(Tab, width = self.Button_Width_Full, text=  self.LanguagePack.Button['Browse'], command= self.Btn_Select_Tesseract_Data_Path).grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=E)
+		
+		Row += 1
+		Label(Tab, text= self.LanguagePack.Label['DBPath']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		self.Text_DB_Path = Entry(Tab,width = 100, state="readonly", textvariable=self.DBPath)
+		self.Text_DB_Path.grid(row=Row, column=3, columnspan=5, padx=5, pady=5, sticky=E+W)
+		Button(Tab, width = self.Button_Width_Full, text=  self.LanguagePack.Button['Browse'], command= self.Btn_Select_DB_Path).grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=E)
 		
 
 	
@@ -451,7 +443,7 @@ class OCR_Project(Frame):
 		return str(path).replace('/', '\\')
 	
 	def Menu_Function_Open_Main_Guideline(self):
-		webbrowser.open_new(r"https://confluence.nexon.com/display/NWMQA/OCR+Tool")
+		webbrowser.open_new(r"https://confluence.nexon.com/display/NWMQA/OCR+%28Optical+Character+Recognition%29+Tool")
 
 	def onExit(self):
 		self.quit()
@@ -462,6 +454,9 @@ class OCR_Project(Frame):
 		self.TesseractPath = StringVar()
 		self.TesseractDataPath = StringVar()
 		self.WorkingLanguage = StringVar()
+		self.language_list = ['']
+
+		self.DBPath = StringVar()
 
 		self.Browse_Type = IntVar()
 
@@ -476,26 +471,17 @@ class OCR_Project(Frame):
 		self.AppConfig = ConfigLoader()
 		self.Configuration = self.AppConfig.Config
 		self.AppLanguage  = self.Configuration['OCR_TOOL']['app_lang']
-		
-		_db_path = self.Configuration['OCR_TOOL']['db_file']
-		self.DB_Path.set(_db_path)
 
 		_tesseract_path = self.Configuration['OCR_TOOL']['tess_path']
 		pytesseract.pytesseract.tesseract_cmd = _tesseract_path
 		self.TesseractPath.set(_tesseract_path)
 
 		_tesseract_data_path = self.Configuration['OCR_TOOL']['tess_data']
-		pytesseract.pytesseract.tesseract_cmd = _tesseract_data_path
 		self.TesseractDataPath.set(_tesseract_data_path)
 
-		tessdata_dir_config = '--tessdata-dir ' + "\"" + _tesseract_data_path + "\""
-		pytesseract.pytesseract.tesseract_cmd = _tesseract_path
-		try:
-			self.language_list = pytesseract.get_languages(config=tessdata_dir_config)
+		_db_path = self.Configuration['OCR_TOOL']['db_path']
+		self.DBPath.set(_db_path)
 
-		except Exception as e:
-			print('Error when getting language:', e)
-			self.language_list = ['']
 
 		_browse_type = self.Configuration['OCR_TOOL']['browsetype']
 		self.Browse_Type.set(_browse_type)
@@ -520,13 +506,6 @@ class OCR_Project(Frame):
 		print('Save setting')
 		return
 
-	def Btn_Select_DB_Path(self):
-		filename = filedialog.askopenfilename(title =  self.LanguagePack.ToolTips['SelectDB'],filetypes = (("JSON files","*.xlsx" ), ), )	
-		if filename != "":
-			db_path = self.CorrectPath(filename)
-			self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'db_file', db_path, True)
-		else:
-			self.Write_Debug("No file is selected")
 
 ###########################################################################################
 # General functions
@@ -856,7 +835,9 @@ class OCR_Project(Frame):
 			self.Write_Debug('Supported language list has been updated!')
 
 		except Exception as e:
-			self.Write_Debug('Error while updateing supported language: ' + str(e))
+			self.Write_Debug('Tess path: ' + str(_exe_))
+			self.Write_Debug('Data path: ' + str(_data_))
+			self.Write_Debug('Error while updating supported language: ' + str(e))
 			self.language_list = ['']
 
 		self.option_working_language.set_completion_list(self.language_list)
@@ -907,6 +888,16 @@ class OCR_Project(Frame):
 		else:
 			gacha_analyze = False
 
+		_db_path = self.DBPath.get()
+		db_list = []
+		print('DB Path:', _db_path)
+		with open(_db_path, newline='', encoding='utf-8-sig') as csvfile:
+			reader = csv.DictReader(csvfile)
+			for language in reader:
+				if _tess_language in language:
+					db_list.append(language[_tess_language])
+		print('DB', db_list)
+		self.Write_Debug('DB length:' + str(len(db_list)))
 		self.OCR_Scan_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas, gacha_analyze, ))
 		
 		self.OCR_Scan_Process.start()
@@ -979,7 +970,14 @@ class OCR_Project(Frame):
 			self.Write_Debug(self.LanguagePack.ToolTips['DataSelected'] + ": " + folder_name)
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
-		
+
+	def Btn_Select_DB_Path(self):
+		filename = filedialog.askopenfilename(title =  self.LanguagePack.ToolTips['SelectDB'],filetypes = (("DB files","*.csv" ), ), )	
+		if os.path.isfile(filename):
+			_db_path = self.CorrectPath(filename)
+			self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'db_path', _db_path, True)
+		else:
+			self.Write_Debug(self.LanguagePack.ToolTips['TessNotSelect'])
 
 	def OCR_Setting_Set_Gacha_Analyze(self):
 		_gacha_analyze = self.GachaAnalyze.get()
@@ -1044,45 +1042,88 @@ def Function_Batch_OCR_Execute(
 		_task_list.append(str_filename)
 
 	if gacha_analyze:
-		_total = int(len(_task_list) * 1.1)
+		_output_dir = os.path.dirname(result_file)
+		_all_image_dir = _output_dir + '\\all_images'
+		_unique_image_dir = _output_dir + '\\unique_images'
+		try:
+			os.mkdir(_all_image_dir)
+			os.mkdir(_unique_image_dir)
+		except:
+			pass	
+		percent = ShowProgress(10, 100)
+		Process_Queue.put(percent)
+
+		Function_Crop_All_Image(image_files, scan_areas, ratio, _all_image_dir)
+		
+		percent = ShowProgress(50, 100)
+		Process_Queue.put(percent)
+
+		_draft_result = Function_Analyze_Gacha(_all_image_dir, _unique_image_dir)
+		count = 0
+		for image in _draft_result:
+			count = count + _draft_result[image]
+		#print('Total image', count)	
+		percent = ShowProgress(70, 100)
+		Process_Queue.put(percent)
+
+		result = {}
+		_output_dir = os.path.dirname(result_file)
+		result_file = _output_dir + '\\' + 'Gacha_Test_Result' + '.xlsx'
+	
+		for image in _draft_result:
+
+			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, _unique_image_dir + '\\' + image))
+			#print(key)
+			if key in result:
+				value = _draft_result[image]
+				result[key]['value'] = result[key]['value'] + value
+			else:
+				value = _draft_result[image]
+				result[key] = {}
+				result[key]['value'] = value
+				result[key]['image'] = image
+
+		row_height = scan_areas[0][3]
+		cell_width = scan_areas[0][2]* (5/30)
+		Function_Export_Gacha_Test_Result(result, _unique_image_dir,result_file, cell_width, row_height)
+		#Function_Analyze_Gacha_Data(result_file, Area_Name)
+		percent = ShowProgress(1, 1)
+		Process_Queue.put(percent)
+		return
 	else:
 		_total = len(_task_list)	
 
-	_complete = 0
-	Area_Name = ['Area_' + str(i) for i in range(len(scan_areas))]
-	Title = ['FileName'] + Area_Name
+		_complete = 0
+		Area_Name = ['Area_' + str(i) for i in range(len(scan_areas))]
+		Title = ['FileName'] + Area_Name
 
-	with open(result_file, 'w', newline='', encoding='utf-8-sig') as csvfile:
-		writer = csv.writer(csvfile)
-		writer.writerow(Title)
-	
-	while len(_task_list) > 0:
-		if len(_task_list) > number_of_processes:
-			_new_task_count = number_of_processes
-		else:
-			_new_task_count = len(_task_list)
-
-		for w in range(_new_task_count):
-
-			input_file = _task_list[0]
-
-			p = Process(target=Get_Text_From_Single_Image, args=(tess_path, tess_language, advanced_tessdata_dir_config, input_file, ratio, scan_areas, result_file,))
-
-			del _task_list[0]
-			processes.append(p)
-			p.start()
-
-		for p in processes :
-			p.join()
-			_complete+=1
+		with open(result_file, 'w', newline='', encoding='utf-8-sig') as csvfile:
+			writer = csv.writer(csvfile)
+			writer.writerow(Title)
 		
-		percent = ShowProgress(_complete, _total)
-		Process_Queue.put(percent)
+		while len(_task_list) > 0:
+			if len(_task_list) > number_of_processes:
+				_new_task_count = number_of_processes
+			else:
+				_new_task_count = len(_task_list)
 
-	if gacha_analyze:
-		Function_Analyze_Gacha_Data(result_file, Area_Name)
-		percent = ShowProgress(_total, _total)
-		Process_Queue.put(percent)
+			for w in range(_new_task_count):
+
+				input_file = _task_list[0]
+
+				p = Process(target=Get_Text_From_Single_Image, args=(tess_path, tess_language, advanced_tessdata_dir_config, input_file, ratio, scan_areas, result_file,))
+
+				del _task_list[0]
+				processes.append(p)
+				p.start()
+
+			for p in processes :
+				p.join()
+				_complete+=1
+			
+			percent = ShowProgress(_complete, _total)
+			Process_Queue.put(percent)
+
 
 def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_config, input_image, ratio, scan_areas, result_file,):
 
@@ -1091,17 +1132,20 @@ def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_c
 	_result = []
 	_output_dir = os.path.dirname(result_file)
 	baseName = os.path.basename(input_image)
-	sourcename = os.path.splitext(baseName)[0]
+	sourcename, ext = os.path.splitext(baseName)
 	_area_count = 0
 	for area in scan_areas:
 		_area_count +=1
 		imCrop = _img[int(area[1]):int(area[1]+area[3]), int(area[0]):int(area[0]+area[2])]
+		_name = _output_dir + '\\' + sourcename + '_' + str(_area_count) + ext
+		cv2.imwrite(_name, imCrop)
+		
 		imCrop = Function_Pre_Processing_Image(imCrop)
 		#_name = _output_dir + '\\' + sourcename + '_' + str(_area_count) + '.jpg'
 		#cv2.imwrite(_name, imCrop)
 		ocr = Get_Text(imCrop, tess_language, advanced_tessdata_dir_config)
 		_result.append(ocr)
-	print(_result)
+
 	baseName = os.path.basename(input_image)
 	file_name = os.path.splitext(baseName)[0]
 	while True:
@@ -1112,6 +1156,125 @@ def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_c
 				break
 		except PermissionError:
 			continue
+
+def Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, input_image):
+	pytesseract.pytesseract.tesseract_cmd = tess_path
+	imCrop = cv2.imread(input_image)
+	ocr = Get_Text(imCrop, tess_language, advanced_tessdata_dir_config)
+	return ocr
+
+def Function_Compare_2_Image(source_image_path, target_image_path):
+	source_image = cv2.imread(source_image_path)
+	source_image = cv2.cvtColor(source_image, cv2.COLOR_BGR2GRAY)	
+
+	target_image = cv2.imread(target_image_path)
+	target_image = cv2.cvtColor(target_image, cv2.COLOR_BGR2GRAY)	
+	
+	result = cv2.matchTemplate(source_image, target_image, cv2.TM_CCOEFF_NORMED)
+	(_, maxVal, _, maxLoc) = cv2.minMaxLoc(result)
+	
+	if maxVal > 0.8:
+		#print('maxVal', maxVal)
+		return True
+	else:
+		return False
+
+def Function_Crop_All_Image(source_images, scan_areas, ratio, output_dir):
+	
+	for image in source_images:
+		_area_count = 0
+		baseName = os.path.basename(image)
+		sourcename, ext = os.path.splitext(baseName)
+		_img = Load_Image_by_Ratio(image, ratio)
+		#_img = cv2.imread(image)
+		for area in scan_areas:
+			_area_count +=1
+			imCrop = _img[int(area[1]):int(area[1]+area[3]), int(area[0]):int(area[0]+area[2])]
+			_name = output_dir + '\\' + sourcename + '_' + str(_area_count) + ext
+			cv2.imwrite(_name, imCrop)
+
+def Function_Analyze_Gacha(all_image_dir, unique_images_dir):
+
+	_temp_image_files = os.listdir(all_image_dir)
+	
+	all_images = []
+	for image in _temp_image_files:
+		image_path = all_image_dir + '\\' + image
+		if os.path.isfile(image_path):
+			all_images.append(all_image_dir + '\\' + image)
+	
+	unique = []
+	count = {}
+	for source_image in all_images:
+		baseName = os.path.basename(source_image)
+		if len(unique) == 0:
+			count[baseName] = 1
+			unique.append(source_image)
+			Export_Unique_Image(source_image, unique_images_dir)
+		else:
+			result = False
+			for target_image in unique:
+				result = Function_Compare_2_Image(source_image, target_image)
+				if result == True:
+					base_target = os.path.basename(target_image)
+					count[base_target] += 1
+					break
+			if result == False:
+				#print('Append to unique:',source_image )
+				count[baseName] = 1
+				unique.append(source_image)
+				Export_Unique_Image(source_image, unique_images_dir)
+	return count
+	
+def Export_Unique_Image(path, new_folder):
+	unique_image = cv2.imread(path)
+	baseName = os.path.basename(path)
+	new_name = new_folder +'\\' + baseName
+	cv2.imwrite(new_name, unique_image)
+
+def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_width, row_height):
+	summary = Workbook()
+	ws =  summary.active
+	ws.title = 'Summary'
+	Header = ['Component', 'Amount', 'Image']
+	Col = 2
+	Row = 2
+	for Par in Header:
+		ws.cell(row=Row, column=Col).value = Par
+		Col +=1
+	Row +=1
+	column_letters = ['B', 'C', 'D']
+
+	for column_letter in column_letters:
+		ws.column_dimensions[column_letter].bestFit = True
+	
+	for component in result_obj:
+		ws.cell(row=Row, column=2).value = component
+		count = result_obj[component]['value']
+		ws.cell(row=Row, column=3).value = count
+		image = image_dir + '\\' + result_obj[component]['image']
+		cell_image = Image(image)
+		cell_image.anchor = 'D' + str(Row)
+		ws.add_image(cell_image)
+		
+		if row_height:
+			ws.row_dimensions[Row].height = row_height
+		if cell_width:
+			ws.column_dimensions['D'].width = cell_width
+	
+		
+		Row +=1
+
+	Tab = Table(displayName="Summary", ref="B2:" + "D" + str(Row-1))
+	style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False, showLastColumn=False, showRowStripes=True, showColumnStripes=True)
+	Tab.tableStyleInfo = style
+	ws.add_table(Tab)
+	now = datetime.now()
+	timestamp = str(int(datetime.timestamp(now)))	
+
+	summary.save(result_path)	
+	summary.close()
+
 
 def Function_Analyze_Gacha_Data(_raw_data, col_name):
 	_output_dir = os.path.dirname(_raw_data)
@@ -1135,6 +1298,8 @@ def Function_Analyze_Gacha_Data(_raw_data, col_name):
 		for component in _gacha:
 			writer.writerow({'Components': component, 'Amount': _gacha[component]})
 	print('Analyze done')	
+
+
 
 def Get_Text(img, tess_language, tessdata_dir_config):
 	ocr = pytesseract.image_to_string(img, lang = tess_language, config=tessdata_dir_config)
