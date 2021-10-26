@@ -52,13 +52,13 @@ class LanguagePackEN:
 	Button['Update'] = "Update"
 	Button['RelativeSearch'] = "Relative Search"
 
+	Button['UpdateLanguage'] = "Get Language"
+
 	Button['SelectArea'] = "Select Location"
 	Button['AddAreaWithText'] = "Input Location"
 	Button['PreviewArea'] = "Preview"
 	Button['SaveConfig'] = "Save Config"
 	Button['Scan'] = "Scan"
-
-	Button['UpdateLanguage'] = "Get Language"
 
 	Option = {}
 	Option['TranslateFileName'] = "Translate file name"
@@ -184,6 +184,8 @@ class LanguagePackEN:
 	Label['TesseractDataPath'] = "Tesseract data:"
 	Label['WorkingRes'] = "Resolution:"
 	Label['WorkingLang'] = "Language:"
+
+	Label['DBPath'] = "DB Path:"
 
 	Tab = {}
 	Tab['Main'] = "Main Menu"
@@ -345,13 +347,13 @@ class LanguagePackKR:
 	Button['SaveConfig'] = "구성 저장"
 	Button['Scan'] = "주사"
 
-	Button['UpdateLanguage'] = "언어 가져오기"
-
 	Button['GetTitle'] = "타이틀 받기"	
 	Button['Reset'] = "초기화"	
 	Button['Load'] = "하중"	
 	Button['Save'] = "저장"	
 	Button['GetReport'] = "보고서 받기"	
+
+	Button['UpdateLanguage'] = "언어 가져오기"
 
 
 	Option = {}
@@ -483,6 +485,8 @@ class LanguagePackKR:
 	Label['WorkingRes'] = "해결:"
 	Label['WorkingLang'] = "언어:"
 
+	Label['DBPath'] = "DB 경로:"
+
 	Tab = {}
 	Tab['Main'] = "메인 메뉴"
 	Tab['General'] = "일반 설정"
@@ -586,4 +590,5 @@ class LanguagePackKR:
 	ToolTips['TessNotSelect'] = "Tesseract가 선택되지 않았습니다!"
 
 	ToolTips['Completed'] = "완전한"
+	
 	Notice = {}
