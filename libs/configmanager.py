@@ -69,6 +69,7 @@ class ConfigLoader:
 		self.Init_Config_Option(config, Section, 'db_file', '', True)
 		self.Init_Config_Option(config, Section, 'tess_path', '', True)
 		self.Init_Config_Option(config, Section, 'tess_data', '', True)
+		self.Init_Config_Option(config, Section, 'db_path', '', True)
 		self.Init_Config_Option(config, Section, 'browsetype', 1)
 		self.Init_Config_Option(config, Section, 'scan_lang', 'eng')
 		self.Init_Config_Option(config, Section, 'app_lang', 'en')
