@@ -187,6 +187,8 @@ class LanguagePackEN:
 
 	Label['DBPath'] = "DB Path:"
 
+	Label['ScanType'] = "Scan type:"
+
 	Tab = {}
 	Tab['Main'] = "Main Menu"
 	Tab['General'] = "General Setting"
@@ -285,11 +287,16 @@ class LanguagePackEN:
 
 	ToolTips['SetResolution'] = "Working resolution has been set to "
 	ToolTips['SetScanLanguage'] = "Scan language has been set to "
-	ToolTips['AnalyzeGachaResult'] = "Analyze Gacha result is "
+	ToolTips['ScanTypeUpdate'] = "Scan type is set to "
 	ToolTips['BrowseTypeUpdate'] = "Browse type has been set to "
 	ToolTips['TessNotSelect'] = "Tesseract is not selected!"
 
 	ToolTips['Completed'] = "Completed"
+
+	ToolTips['NormalScan'] = "Normal scan: text will be exported into csv file\n. Please get the scan result in result folder."
+	ToolTips['GachaScan'] = "Gacha scan: All components name will be scanned and sumup in result file."
+	ToolTips['QuickScan'] = "Quick scan: All scanned result will be display in debug window."
+
 
 	Notice = {}
 
@@ -487,6 +494,8 @@ class LanguagePackKR:
 
 	Label['DBPath'] = "DB 경로:"
 
+	Label['ScanType'] = "스캔 유형:"
+
 	Tab = {}
 	Tab['Main'] = "메인 메뉴"
 	Tab['General'] = "일반 설정"
@@ -585,10 +594,14 @@ class LanguagePackKR:
 
 	ToolTips['SetResolution'] = "작업 해상도가 다음으로 설정되었습니다 "
 	ToolTips['SetScanLanguage'] = "스캔 언어가 다음으로 설정되었습니다 "
-	ToolTips['AnalyzeGachaResult'] = "Gacha 결과 분석 "
+	ToolTips['ScanTypeUpdate'] = '스캔 유형이 다음으로 설정됩니다'
 	ToolTips['BrowseTypeUpdate'] = "찾아보기 유형이 다음으로 설정되었습니다."
 	ToolTips['TessNotSelect'] = "Tesseract가 선택되지 않았습니다!"
 
 	ToolTips['Completed'] = "완전한"
 	
+	ToolTips['NormalScan'] = "일반 스캔: 텍스트를 csv 파일로 내보냅니다. 결과 폴더에서 스캔 결과를 받으십시오."
+	ToolTips['GachaScan'] = "Gacha 스캔: 모든 구성 요소 이름을 스캔하고 결과 파일에 요약합니다."
+	ToolTips['QuickScan'] = "빠른 스캔: 모든 스캔 결과가 디버그 창에 표시됩니다."
+
 	Notice = {}

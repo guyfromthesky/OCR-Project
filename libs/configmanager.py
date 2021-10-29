@@ -74,7 +74,8 @@ class ConfigLoader:
 		self.Init_Config_Option(config, Section, 'scan_lang', 'eng')
 		self.Init_Config_Option(config, Section, 'app_lang', 'en')
 		self.Init_Config_Option(config, Section, 'resolution', 720)
-		self.Init_Config_Option(config, Section, 'gachascan', 720)
+		self.Init_Config_Option(config, Section, 'scan_type', "Normal")
+		
 
 
 		with open(config_path, 'w') as configfile:

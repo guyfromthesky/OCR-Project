@@ -2,6 +2,7 @@
 import os
 import csv
 from posixpath import basename
+from re import match
 import sys
 import random
 
@@ -58,13 +59,15 @@ import cv2
 import numpy as np
 import pytesseract
 
+import Levenshtein as lev
+
 #from document_toolkit_function.py import *
 
 DELAY1 = 20
 
 ToolDisplayName = "OCR Project"
 tool_name = 'ocr'
-rev = 1002
+rev = 1004
 a,b,c,d = list(str(rev))
 VerNum = a + '.' + b + '.' + c + chr(int(d)+97)
 
@@ -201,6 +204,7 @@ class OCR_Project(Frame):
 		'''
 		Create main tab
 		'''
+		
 		Row=1
 		self.Str_OCR_Image_Path = StringVar()
 		Label(Tab, text=  self.LanguagePack.Label['ImageSource']).grid(row=Row, column=1, padx=5, pady=5, sticky= W)
@@ -208,7 +212,7 @@ class OCR_Project(Frame):
 		self.Entry_Old_File_Path.grid(row=Row, column=2, columnspan=7, padx=5, pady=5, sticky=E+W)
 		 
 		Btn_Browse_Image = Button(Tab, width = self.Button_Width_Half, text=  self.LanguagePack.Button['Browse'], command= self.Btn_OCR_Browse_Image_Data)
-		Btn_Browse_Image.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+		Btn_Browse_Image.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=E)
 
 		Row+=1
 		self.Str_OCR_Config_Path = StringVar()
@@ -317,15 +321,18 @@ class OCR_Project(Frame):
 		Radiobutton(Tab, width= 10, text=  '720p', value=1, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=2, padx=0, pady=5, sticky=W)
 		Radiobutton(Tab, width= 10, text=  '1080p', value=2, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=3, padx=0, pady=5, sticky=W)
 	
-	
-		GachaAnalyzeEnable = Checkbutton(Tab, text=  self.LanguagePack.Option['GachaScan'], variable = self.GachaAnalyze, command=self.OCR_Setting_Set_Gacha_Analyze)
-		GachaAnalyzeEnable.grid(row=Row, column=4,padx=0, pady=5, sticky=W)
-
 		Row += 1
-		Label(Tab, text= self.LanguagePack.Label['WorkingLang']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+
+		Label(Tab, text= self.LanguagePack.Label['ScanType']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		_scan_type = ['', 'Normal', 'Gacha', 'Quick']
+		Option_ScanType = OptionMenu(Tab, self.ScanType, *_scan_type, command = self.OCR_Setting_Set_Scan_Type)
+		Option_ScanType.config(width=10)
+		Option_ScanType.grid(row=Row, column=2,padx=0, pady=5, sticky=W)
+
+		Label(Tab, text= self.LanguagePack.Label['WorkingLang']).grid(row=Row, column=3, padx=5, pady=5, sticky=W)
 		self.option_working_language = AutocompleteCombobox(Tab)
-		self.option_working_language.Set_Entry_Width(self.Button_Width_Full)
-		self.option_working_language.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
+		self.option_working_language.Set_Entry_Width(10)
+		self.option_working_language.grid(row=Row, column=4, padx=5, pady=5, sticky=W)
 		
 		Row+=1
 		Label(Tab, text= self.LanguagePack.Label['Progress']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
@@ -463,8 +470,7 @@ class OCR_Project(Frame):
 		self.Resolution = IntVar()
 		self.CurrentDataSource = StringVar()
 
-
-		self.GachaAnalyze = IntVar()
+		self.ScanType = StringVar()
 
 		self.Notice = StringVar()
 
@@ -473,7 +479,7 @@ class OCR_Project(Frame):
 		self.AppLanguage  = self.Configuration['OCR_TOOL']['app_lang']
 
 		_tesseract_path = self.Configuration['OCR_TOOL']['tess_path']
-		pytesseract.pytesseract.tesseract_cmd = _tesseract_path
+		pytesseract.pytesseract.tesseract_cmd = str(_tesseract_path)
 		self.TesseractPath.set(_tesseract_path)
 
 		_tesseract_data_path = self.Configuration['OCR_TOOL']['tess_data']
@@ -489,15 +495,14 @@ class OCR_Project(Frame):
 		_resolution = self.Configuration['OCR_TOOL']['resolution']
 		self.Resolution.set(_resolution)
 
-		_gacha_scan = self.Configuration['OCR_TOOL']['gachascan']
-		self.GachaAnalyze.set(_gacha_scan)
 		
 	def init_UI_Data(self):
 		self.Btn_OCR_Update_Working_Language()
 		_working_language = self.Configuration['OCR_TOOL']['scan_lang']
-		print('Working language:', _working_language)
 		self.option_working_language.set(_working_language)
-		#self.WorkingLanguage.set(_working_language)
+
+		_scan_type = self.Configuration['OCR_TOOL']['scan_type']
+		self.ScanType.set(_scan_type)
 
 
 
@@ -826,10 +831,11 @@ class OCR_Project(Frame):
 			self.BadWord_Check_Process.terminate()
 
 	def Btn_OCR_Update_Working_Language(self):
-		_data_ = self.TesseractDataPath.get()
-		_exe_ = self.TesseractPath.get()
+		_data_ = str(self.TesseractDataPath.get())
+		_exe_ = str(self.TesseractPath.get())
 		_tessdata_dir_config = '--tessdata-dir ' + "\"" + _data_ + "\""
 		pytesseract.pytesseract.tesseract_cmd = _exe_
+		#self.language_list = pytesseract.get_languages(config=_tessdata_dir_config)
 		try:
 			self.language_list = pytesseract.get_languages(config=_tessdata_dir_config)
 			self.Write_Debug('Supported language list has been updated!')
@@ -882,23 +888,22 @@ class OCR_Project(Frame):
 
 		self.Btn_Open_Result.configure(state=NORMAL)
 
-		_gacha_analyze = self.GachaAnalyze.get()
-		if _gacha_analyze == 1:
-			gacha_analyze = True
-		else:
-			gacha_analyze = False
+		_scan_type = self.ScanType.get()
 
-		_db_path = self.DBPath.get()
+
 		db_list = []
-		print('DB Path:', _db_path)
-		with open(_db_path, newline='', encoding='utf-8-sig') as csvfile:
-			reader = csv.DictReader(csvfile)
-			for language in reader:
-				if _tess_language in language:
-					db_list.append(language[_tess_language])
-		print('DB', db_list)
-		self.Write_Debug('DB length:' + str(len(db_list)))
-		self.OCR_Scan_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas, gacha_analyze, ))
+		if _scan_type == 'Gacha':
+			_db_path = self.DBPath.get()
+			if os.path.isfile(_db_path):		
+				with open(_db_path, newline='', encoding='utf-8-sig') as csvfile:
+					reader = csv.DictReader(csvfile)
+					for language in reader:
+						
+						if _tess_language in language:
+							db_list.append(language[_tess_language])
+			self.Write_Debug('DB length:' + str(len(db_list)))
+
+		self.OCR_Scan_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas, _scan_type, db_list, ))
 		
 		self.OCR_Scan_Process.start()
 		
@@ -979,16 +984,18 @@ class OCR_Project(Frame):
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['TessNotSelect'])
 
-	def OCR_Setting_Set_Gacha_Analyze(self):
-		_gacha_analyze = self.GachaAnalyze.get()
-		if _gacha_analyze == 1:
-			_status = 'enabled'
-		else:
-			_status = 'disabled'
-		
-		self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'gachascan', _gacha_analyze)
+	def OCR_Setting_Set_Scan_Type(self, scan_type):		
+		self.ScanType.set(scan_type)
+		self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'scan_type', scan_type)
+		self.Write_Debug(self.LanguagePack.ToolTips['ScanTypeUpdate'] + str(scan_type) + '.')
+		if scan_type == 'Normal':
+			self.Write_Debug(self.LanguagePack.ToolTips['NormalScan'])
+		elif scan_type == 'Gacha':
+			self.Write_Debug(self.LanguagePack.ToolTips['GachaScan'])
+		elif scan_type == 'Quick':
+			self.Write_Debug(self.LanguagePack.ToolTips['QuickScan'])
 
-		self.Write_Debug(self.LanguagePack.ToolTips['AnalyzeGachaResult'] + str(_status))
+
 
 	def OCR_Setting_Set_Browse_Type(self):
 		_browse_type = self.Browse_Type.get()
@@ -1025,13 +1032,12 @@ class OCR_Project(Frame):
 ###########################################################################################
 
 def Function_Batch_OCR_Execute(
-	Result_Queue, Status_Queue, Process_Queue, tess_path, tess_language, tess_data, image_files, result_file, ratio, scan_areas, gacha_analyze, **kwargs):
+	Result_Queue, Status_Queue, Process_Queue, tess_path, tess_language, tess_data, image_files, result_file, ratio, scan_areas, scan_type, db_list, **kwargs):
 	
 	advanced_tessdata_dir_config = '--psm 7 --tessdata-dir ' + '"' + tess_data + '"'
 
 	if tess_language == '':
 		tess_language = 'kor'
-	Status_Queue.put('Scan language: ' + tess_language)
 
 	number_of_processes = multiprocessing.cpu_count()
 
@@ -1041,39 +1047,91 @@ def Function_Batch_OCR_Execute(
 		str_filename = str(image)
 		_task_list.append(str_filename)
 
-	if gacha_analyze:
+	if scan_type == 'Gacha':
 		_output_dir = os.path.dirname(result_file)
 		_all_image_dir = _output_dir + '\\all_images'
 		_unique_image_dir = _output_dir + '\\unique_images'
+		current_ratio = 0
+		process_ratio = 0.01
 		try:
 			os.mkdir(_all_image_dir)
 			os.mkdir(_unique_image_dir)
 		except:
-			pass	
-		percent = ShowProgress(10, 100)
-		Process_Queue.put(percent)
-
-		Function_Crop_All_Image(image_files, scan_areas, ratio, _all_image_dir)
+			pass
 		
-		percent = ShowProgress(50, 100)
+		percent = ShowProgress(process_ratio, 100)
+		current_ratio+=process_ratio
 		Process_Queue.put(percent)
 
-		_draft_result = Function_Analyze_Gacha(_all_image_dir, _unique_image_dir)
+		Status_Queue.put('Crop image')
+		process_ratio = 0.04
+		image_count = Function_Crop_All_Image(Process_Queue, image_files, scan_areas, ratio, _all_image_dir, process_ratio, current_ratio)
+		current_ratio+=process_ratio
+
+
+		Status_Queue.put('Filter unique images('+ str(image_count) + ')')
+		process_ratio =0.10
+		_draft_result = Function_Analyze_Gacha(Process_Queue, _all_image_dir, _unique_image_dir, process_ratio, current_ratio)
+		current_ratio+=process_ratio
+		
 		count = 0
 		for image in _draft_result:
 			count = count + _draft_result[image]
-		#print('Total image', count)	
-		percent = ShowProgress(70, 100)
-		Process_Queue.put(percent)
-
+	
 		result = {}
+		
+		process_ratio = (1-current_ratio - 0.01)
 		_output_dir = os.path.dirname(result_file)
 		result_file = _output_dir + '\\' + 'Gacha_Test_Result' + '.xlsx'
-	
+		process_count = 0
+		total_process = len(_draft_result.keys())
+		Status_Queue.put('Scan text from unique images(' + str(total_process) + ')')
+		new_db_list = []
+		for word in db_list:
+			new_db_list.append(word.replace(' ', '').lower())
 		for image in _draft_result:
-
 			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, _unique_image_dir + '\\' + image))
-			#print(key)
+			_match_type = 'none'
+			if len(new_db_list)> 0:
+				_temp_text = key.replace(' ','').lower()
+				if len(_temp_text) == 0:
+					continue
+				if _temp_text in new_db_list:
+					# exact match
+					_index = new_db_list.index(_temp_text)
+					key = db_list[_index]
+					_match_type = 'exact'
+				else:
+					# similarity check
+					_dist = len(_temp_text)
+					_ratio = 0
+					_word = ''
+					for word in new_db_list:
+						Distance = lev.distance(_temp_text, word)		
+						Ratio = lev.ratio(_temp_text, word)
+						if Distance <= _dist and Ratio >= _ratio:
+							_dist = Distance
+							_ratio = Ratio
+							_word = word
+
+					if _dist/len(_temp_text) <= 0.2 and _ratio >= 0.8:
+						_index = new_db_list.index(_word)
+						_key = db_list[_index]
+						Status_Queue.put('Text has been corrected from: ' + key + ' to ' + _key)
+						key = _key
+						_match_type = 'corrected'
+					elif _dist/len(_temp_text) < 0.34 and _ratio > 0.66 and len(_temp_text) == len(_word):
+						_index = new_db_list.index(_word)
+						_key = db_list[_index]
+						Status_Queue.put('Text has been corrected from: ' + key + ' to ' + _key)
+						key = _key
+						_match_type = 'corrected'	
+			
+			error_count = 0
+			if len(key.replace(' ','')) == 0:
+				error_count+=1
+				key = '[Error_'+ str(error_count) + ']'
+
 			if key in result:
 				value = _draft_result[image]
 				result[key]['value'] = result[key]['value'] + value
@@ -1082,15 +1140,25 @@ def Function_Batch_OCR_Execute(
 				result[key] = {}
 				result[key]['value'] = value
 				result[key]['image'] = image
+				result[key]['match_type'] = _match_type
+
+			process_count+=1	
+			percent = ShowProgress(process_count, total_process, process_ratio, current_ratio )
+			Process_Queue.put(percent)		
+		
+		current_ratio += process_ratio
 
 		row_height = scan_areas[0][3]
 		cell_width = scan_areas[0][2]* (5/30)
+		
+		Status_Queue.put('Export test result')
+
+
 		Function_Export_Gacha_Test_Result(result, _unique_image_dir,result_file, cell_width, row_height)
-		#Function_Analyze_Gacha_Data(result_file, Area_Name)
 		percent = ShowProgress(1, 1)
 		Process_Queue.put(percent)
 		return
-	else:
+	elif scan_type == 'Normal':
 		_total = len(_task_list)	
 
 		_complete = 0
@@ -1123,6 +1191,8 @@ def Function_Batch_OCR_Execute(
 			
 			percent = ShowProgress(_complete, _total)
 			Process_Queue.put(percent)
+	else:
+		Status_Queue.put('Sorry, this feature is not available now.')	
 
 
 def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_config, input_image, ratio, scan_areas, result_file,):
@@ -1179,21 +1249,35 @@ def Function_Compare_2_Image(source_image_path, target_image_path):
 	else:
 		return False
 
-def Function_Crop_All_Image(source_images, scan_areas, ratio, output_dir):
+def Function_Crop_All_Image(Process_Queue, source_images, scan_areas, ratio, output_dir, start_percent, process_ratio):
 	
+	total_task = len(scan_areas) * len(source_images)
+	amount = 0
+	_total_w = 0
+	_total_h = 0
+
+	for area in scan_areas:
+		_total_w += area[2]
+		_total_h += area[3]
+	_avg_w = _total_w/(len(scan_areas))
+	_avg_h = _total_h/(len(scan_areas))
 	for image in source_images:
 		_area_count = 0
 		baseName = os.path.basename(image)
 		sourcename, ext = os.path.splitext(baseName)
 		_img = Load_Image_by_Ratio(image, ratio)
-		#_img = cv2.imread(image)
+		
 		for area in scan_areas:
 			_area_count +=1
-			imCrop = _img[int(area[1]):int(area[1]+area[3]), int(area[0]):int(area[0]+area[2])]
+			imCrop = _img[int(area[1]):int(area[1]+_avg_h), int(area[0]):int(area[0]+_avg_w)]
 			_name = output_dir + '\\' + sourcename + '_' + str(_area_count) + ext
 			cv2.imwrite(_name, imCrop)
+			amount+=1
+		percent = ShowProgress(amount, total_task, process_ratio, start_percent)
+		Process_Queue.put(percent)		
+	return amount
 
-def Function_Analyze_Gacha(all_image_dir, unique_images_dir):
+def Function_Analyze_Gacha(Process_Queue, all_image_dir, unique_images_dir, start_percent, process_ratio):
 
 	_temp_image_files = os.listdir(all_image_dir)
 	
@@ -1205,6 +1289,8 @@ def Function_Analyze_Gacha(all_image_dir, unique_images_dir):
 	
 	unique = []
 	count = {}
+	process = 0
+	all_process = len(all_images)
 	for source_image in all_images:
 		baseName = os.path.basename(source_image)
 		if len(unique) == 0:
@@ -1220,10 +1306,12 @@ def Function_Analyze_Gacha(all_image_dir, unique_images_dir):
 					count[base_target] += 1
 					break
 			if result == False:
-				#print('Append to unique:',source_image )
 				count[baseName] = 1
 				unique.append(source_image)
 				Export_Unique_Image(source_image, unique_images_dir)
+		process+=1		
+		percent = ShowProgress(process, all_process, start_percent, process_ratio)
+		Process_Queue.put(percent)			
 	return count
 	
 def Export_Unique_Image(path, new_folder):
@@ -1233,6 +1321,14 @@ def Export_Unique_Image(path, new_folder):
 	cv2.imwrite(new_name, unique_image)
 
 def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_width, row_height):
+
+	all_match_color = Color(rgb='ADF7B6')
+	all_match_fill = PatternFill(patternType='solid', fgColor=all_match_color)
+	corrected_color = Color(rgb='A0CED9')
+	corrected_fill = PatternFill(patternType='solid', fgColor=corrected_color)
+	none_color = Color(rgb='FFEE93')
+	none_fill = PatternFill(patternType='solid', fgColor=none_color)
+
 	summary = Workbook()
 	ws =  summary.active
 	ws.title = 'Summary'
@@ -1243,6 +1339,14 @@ def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_w
 		ws.cell(row=Row, column=Col).value = Par
 		Col +=1
 	Row +=1
+
+	ws.cell(row=2, column=6).fill = all_match_fill
+	ws.cell(row=2, column=7).value = "Component name found in DB"
+	ws.cell(row=3, column=6).fill = corrected_fill
+	ws.cell(row=3, column=7).value = "Component name corrected by using DB"
+	ws.cell(row=4, column=6).fill = none_fill
+	ws.cell(row=4, column=7).value = "Component name not found in DB"
+		
 	column_letters = ['B', 'C', 'D']
 
 	for column_letter in column_letters:
@@ -1250,6 +1354,14 @@ def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_w
 	
 	for component in result_obj:
 		ws.cell(row=Row, column=2).value = component
+		_match_type = result_obj[component]['match_type']
+		if _match_type == 'exact':
+			ws.cell(row=Row, column=2).fill = all_match_fill
+		elif _match_type == 'corrected':
+			ws.cell(row=Row, column=2).fill = corrected_fill
+		else:
+			ws.cell(row=Row, column=2).fill = none_fill
+
 		count = result_obj[component]['value']
 		ws.cell(row=Row, column=3).value = count
 		image = image_dir + '\\' + result_obj[component]['image']
@@ -1264,6 +1376,8 @@ def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_w
 	
 		
 		Row +=1
+
+
 
 	Tab = Table(displayName="Summary", ref="B2:" + "D" + str(Row-1))
 	style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False, showLastColumn=False, showRowStripes=True, showColumnStripes=True)
@@ -1379,15 +1493,16 @@ def image_smoothening(img):
 	return th3
 
 
-def ShowProgress(Counter, TotalProcess):
-	#os.system('CLS') 
-	percent = int(1000 * Counter / TotalProcess)
+def ShowProgress(Counter, TotalProcess, share=1, start_value=0):
+	#print(locals())
+	percent = int(1000 * Counter * share/ TotalProcess) + int(start_value*1000)
 	#print("Current progress: " +  str(Counter) + '/ ' + str(TotalProcess))
+	#print('Percent:', percent)
 	return percent
 
-def Function_Get_TimeStamp():		
+def Function_Get_TimeStamp():
 	now = datetime.now()
-	timestamp = str(int(datetime.timestamp(now)))			
+	timestamp = str(int(datetime.timestamp(now)))
 	return timestamp
 	
 ###########################################################################################
@@ -1411,11 +1526,15 @@ def main():
 	My_Queue['Result_Queue'] = Result_Queue
 	My_Queue['Status_Queue'] = Status_Queue
 	My_Queue['Debug_Queue'] = Debug_Queue
-
+	
 	My_Manager = {}
 	My_Manager['Default_Manager'] = Default_Manager
 
 	OCR_Project(root, Queue = My_Queue, Manager = My_Manager,)
+	
+	#root.overrideredirect(1)
+	root.attributes("-alpha", 0.95)
+
 	root.mainloop()  
 
 

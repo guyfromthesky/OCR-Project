@@ -2,3 +2,51 @@
 *.csv
 /Lib
 /Scripts
+[Console] OCR Project.exe.spec
+__pycache__/languagepack.cpython-39.pyc
+__pycache__/OCR Project.cpython-39.pyc
+build/[Console] OCR Project.exe/[Console] OCR Project.exe.exe.manifest
+build/[Console] OCR Project.exe/Analysis-00.toc
+build/[Console] OCR Project.exe/base_library.zip
+build/[Console] OCR Project.exe/EXE-00.toc
+build/[Console] OCR Project.exe/PKG-00.pkg
+build/[Console] OCR Project.exe/PKG-00.toc
+build/[Console] OCR Project.exe/PYZ-00.pyz
+build/[Console] OCR Project.exe/PYZ-00.toc
+build/[Console] OCR Project.exe/Tree-00.toc
+build/[Console] OCR Project.exe/Tree-01.toc
+build/[Console] OCR Project.exe/Tree-02.toc
+build/[Console] OCR Project.exe/warn-[Console] OCR Project.exe.txt
+build/[Console] OCR Project.exe/xref-[Console] OCR Project.exe.html
+build/OCR Project.exe/Analysis-00.toc
+build/OCR Project.exe/base_library.zip
+build/OCR Project.exe/EXE-00.toc
+build/OCR Project.exe/OCR Project.exe.exe.manifest
+build/OCR Project.exe/PKG-00.pkg
+build/OCR Project.exe/PKG-00.toc
+build/OCR Project.exe/PYZ-00.pyz
+build/OCR Project.exe/PYZ-00.toc
+build/OCR Project.exe/Tree-00.toc
+build/OCR Project.exe/Tree-01.toc
+build/OCR Project.exe/Tree-02.toc
+build/OCR Project.exe/warn-OCR Project.exe.txt
+build/OCR Project.exe/xref-OCR Project.exe.html
+build/OCR Project/Analysis-00.toc
+build/OCR Project/base_library.zip
+build/OCR Project/EXE-00.toc
+build/OCR Project/OCR Project.exe.manifest
+build/OCR Project/PKG-00.pkg
+build/OCR Project/PKG-00.toc
+build/OCR Project/PYZ-00.pyz
+build/OCR Project/PYZ-00.toc
+build/OCR Project/Tree-00.toc
+build/OCR Project/Tree-01.toc
+build/OCR Project/Tree-02.toc
+build/OCR Project/warn-OCR Project.txt
+build/OCR Project/xref-OCR Project.html
+Compile - Copy.bat
+*.xlsx
+*.pyc
+*.exe
+*.zip
+*.spec
