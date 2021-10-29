@@ -257,7 +257,6 @@ class OCR_Project(Frame):
 		self.Str_Weight.grid(row=Row, column=4, padx=0, pady=5, sticky=W)
 		self.Str_Weight.bind("<Tab>", self.entry_next)	
 
-		
 		self.Option_Image_Update = Radiobutton(Tab, width= 10, text= "Image Area", value=2, variable=self.Region_Type, command=None)
 		self.Option_Image_Update.grid(row=Row, column=5,columnspan=2,padx=0, pady=5, sticky=W)
 		self.Option_Image_Update.configure(state=DISABLED)
@@ -1036,8 +1035,18 @@ class OCR_Project(Frame):
 						if _tess_language in language:
 							db_list.append(language[_tess_language])
 			self.Write_Debug('DB length:' + str(len(db_list)))
-
-		self.OCR_Scan_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas, _scan_type, db_list, ))
+		elif _scan_type == 'DB Create':
+			_db_path = self.DBPath.get()
+			if os.path.isfile(_db_path):		
+				with open(_db_path, newline='', encoding='utf-8-sig') as csvfile:
+					reader = csv.DictReader(csvfile)
+					for language in reader:
+						
+						if _tess_language in language:
+							db_list.append(language[_tess_language])
+			self.Write_Debug('DB length:' + str(len(db_list)))
+	
+		self.OCR_Scan_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas,_scan_type, db_list, ))
 		
 		self.OCR_Scan_Process.start()
 		
@@ -1181,7 +1190,7 @@ class OCR_Project(Frame):
 ###########################################################################################
 
 def Function_Batch_OCR_Execute(
-	Result_Queue, Status_Queue, Process_Queue, tess_path, tess_language, tess_data, image_files, result_file, ratio, scan_areas, scan_type, db_list, **kwargs):
+	Result_Queue, Status_Queue, Process_Queue, tess_path, tess_language, tess_data, image_files, result_file, ratio, scan_areas, scan_type = 'Normal', db_list = [], **kwargs):
 	
 	advanced_tessdata_dir_config = '--psm 7 --tessdata-dir ' + '"' + tess_data + '"'
 
@@ -1195,18 +1204,16 @@ def Function_Batch_OCR_Execute(
 	for image in image_files:
 		str_filename = str(image)
 		_task_list.append(str_filename)
-
+	print('scan type: ', scan_type)
 	if scan_type == 'Gacha':
 		_output_dir = os.path.dirname(result_file)
 		_all_image_dir = _output_dir + '\\all_images'
 		_unique_image_dir = _output_dir + '\\unique_images'
 		current_ratio = 0
 		process_ratio = 0.01
-		try:
-			os.mkdir(_all_image_dir)
-			os.mkdir(_unique_image_dir)
-		except:
-			pass
+		
+		initFolder(_all_image_dir)
+		initFolder(_unique_image_dir)
 		
 		percent = ShowProgress(process_ratio, 100)
 		current_ratio+=process_ratio
@@ -1214,13 +1221,13 @@ def Function_Batch_OCR_Execute(
 
 		Status_Queue.put('Crop image')
 		process_ratio = 0.04
-		image_count = Function_Crop_All_Image(Process_Queue, image_files, scan_areas, ratio, _all_image_dir, process_ratio, current_ratio)
+		image_info = Function_Crop_All_Image(Process_Queue, image_files, scan_areas, ratio, _all_image_dir, process_ratio, current_ratio)
 		current_ratio+=process_ratio
 
 
-		Status_Queue.put('Filter unique images('+ str(image_count) + ')')
+		Status_Queue.put('Filter unique images('+ str(image_info['count']) + ')')
 		process_ratio =0.10
-		_draft_result = Function_Analyze_Gacha(Process_Queue, _all_image_dir, _unique_image_dir, process_ratio, current_ratio)
+		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_image_dir, _unique_image_dir, process_ratio, current_ratio)
 		current_ratio+=process_ratio
 		
 		count = 0
@@ -1340,6 +1347,129 @@ def Function_Batch_OCR_Execute(
 			
 			percent = ShowProgress(_complete, _total)
 			Process_Queue.put(percent)
+	elif scan_type == 'DB Create':
+		_output_dir = os.path.dirname(result_file)
+		
+		_all_text_image_dir = _output_dir + '\\all_text_images'
+		_unique_text_image_dir = _output_dir + '\\unique_text_images'
+
+		_all_component_image_dir = _output_dir + '\\all_component_images'
+		_unique_component_image_dir = _output_dir + '\\unique_component_images'
+
+		current_ratio = 0
+		process_ratio = 0.01
+		
+		initFolder(_all_text_image_dir)
+		initFolder(_unique_text_image_dir)
+
+		initFolder(_all_component_image_dir)
+		initFolder(_unique_component_image_dir)
+		
+		percent = ShowProgress(process_ratio, 100)
+		current_ratio+=process_ratio
+		Process_Queue.put(percent)
+
+		Status_Queue.put('Crop image')
+		process_ratio = 0.04
+		
+		text_image_info = Function_Crop_All_Image(Process_Queue, image_files, scan_areas, ratio, _all_text_image_dir, process_ratio, current_ratio)
+		component_image_info = Function_Crop_All_Image(Process_Queue, image_files, component_areas, ratio, _all_component_image_dir, process_ratio, current_ratio)
+
+		current_ratio+=process_ratio
+		
+		Status_Queue.put('Filter unique components('+ str(component_image_info['count']) + ')')
+		process_ratio =0.10
+
+		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_text_image_dir, _unique_text_image_dir, process_ratio, current_ratio)
+		_component_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_component_image_dir, _unique_component_image_dir, process_ratio, current_ratio)
+		
+		current_ratio+=process_ratio
+		
+		count = 0
+		for image in _draft_result:
+			count = count + _draft_result[image]
+	
+		result = {}
+		
+		process_ratio = (1-current_ratio - 0.01)
+		_output_dir = os.path.dirname(result_file)
+		result_file = _output_dir + '\\' + 'Gacha_Test_Result' + '.xlsx'
+		process_count = 0
+		total_process = len(_draft_result.keys())
+		Status_Queue.put('Scan text from unique images(' + str(total_process) + ')')
+		new_db_list = []
+		for word in db_list:
+			new_db_list.append(word.replace(' ', '').lower())
+		for image in _draft_result:
+			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, _unique_text_image_dir + '\\' + image))
+			_match_type = 'none'
+			if len(new_db_list)> 0:
+				_temp_text = key.replace(' ','').lower()
+				if len(_temp_text) == 0:
+					continue
+				if _temp_text in new_db_list:
+					# exact match
+					_index = new_db_list.index(_temp_text)
+					key = db_list[_index]
+					_match_type = 'exact'
+				else:
+					# similarity check
+					_dist = len(_temp_text)
+					_ratio = 0
+					_word = ''
+					for word in new_db_list:
+						Distance = lev.distance(_temp_text, word)		
+						Ratio = lev.ratio(_temp_text, word)
+						if Distance <= _dist and Ratio >= _ratio:
+							_dist = Distance
+							_ratio = Ratio
+							_word = word
+
+					if _dist/len(_temp_text) <= 0.2 and _ratio >= 0.8:
+						_index = new_db_list.index(_word)
+						_key = db_list[_index]
+						Status_Queue.put('Text has been corrected from: ' + key + ' to ' + _key)
+						key = _key
+						_match_type = 'corrected'
+					elif _dist/len(_temp_text) < 0.34 and _ratio > 0.66 and len(_temp_text) == len(_word):
+						_index = new_db_list.index(_word)
+						_key = db_list[_index]
+						Status_Queue.put('Text has been corrected from: ' + key + ' to ' + _key)
+						key = _key
+						_match_type = 'corrected'	
+			
+			error_count = 0
+			if len(key.replace(' ','')) == 0:
+				error_count+=1
+				key = '[Error_'+ str(error_count) + ']'
+
+			if key in result:
+				value = _draft_result[image]
+				result[key]['value'] = result[key]['value'] + value
+			else:
+				value = _draft_result[image]
+				result[key] = {}
+				result[key]['value'] = value
+				result[key]['image'] = image
+				result[key]['match_type'] = _match_type
+
+			process_count+=1	
+			percent = ShowProgress(process_count, total_process, process_ratio, current_ratio )
+			Process_Queue.put(percent)		
+		
+		current_ratio += process_ratio
+
+		row_height = scan_areas[0][3]
+		cell_width = scan_areas[0][2]* (5/30)
+		
+		Status_Queue.put('Export test result')
+
+
+		Function_Export_Gacha_Test_Result(result, _unique_text_image_dir,result_file, cell_width, row_height)
+		percent = ShowProgress(1, 1)
+		Process_Queue.put(percent)
+		return
+	
 	else:
 		Status_Queue.put('Sorry, this feature is not available now.')	
 
@@ -1410,23 +1540,37 @@ def Function_Crop_All_Image(Process_Queue, source_images, scan_areas, ratio, out
 		_total_h += area[3]
 	_avg_w = _total_w/(len(scan_areas))
 	_avg_h = _total_h/(len(scan_areas))
+
+	info = {}
+
 	for image in source_images:
 		_area_count = 0
 		baseName = os.path.basename(image)
 		sourcename, ext = os.path.splitext(baseName)
 		_img = Load_Image_by_Ratio(image, ratio)
-		
+		info[sourcename] = []
 		for area in scan_areas:
 			_area_count +=1
 			imCrop = _img[int(area[1]):int(area[1]+_avg_h), int(area[0]):int(area[0]+_avg_w)]
 			_name = output_dir + '\\' + sourcename + '_' + str(_area_count) + ext
+			
 			cv2.imwrite(_name, imCrop)
+
+			image_info = {}
+			image_info['link'] = _name
+			image_info['area'] = _area_count
+
+			info[sourcename].append(image_info)
 			amount+=1
+
 		percent = ShowProgress(amount, total_task, process_ratio, start_percent)
 		Process_Queue.put(percent)		
-	return amount
 
-def Function_Analyze_Gacha(Process_Queue, all_image_dir, unique_images_dir, start_percent, process_ratio):
+	info['count'] = amount
+
+	return info
+
+def Function_Filter_Unique_Image(Process_Queue, all_image_dir, unique_images_dir, start_percent, process_ratio):
 
 	_temp_image_files = os.listdir(all_image_dir)
 	
@@ -1653,7 +1797,20 @@ def Function_Get_TimeStamp():
 	now = datetime.now()
 	timestamp = str(int(datetime.timestamp(now)))
 	return timestamp
-	
+
+def initFolder(dir_path):
+	'''
+	Create the config folder incase it's not existed
+	'''
+	if not os.path.isdir(dir_path):
+		try:
+			os.mkdir(dir_path)
+		except OSError:
+			print ("Creation of the directory %s failed" % dir_path)
+		else:
+			print ("Successfully created the directory %s " % dir_path)
+		#Check local database
+
 ###########################################################################################
 # Main loop
 ###########################################################################################
