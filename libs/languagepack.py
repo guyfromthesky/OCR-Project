@@ -296,6 +296,7 @@ class LanguagePackEN:
 	ToolTips['NormalScan'] = "Normal scan: text will be exported into csv file\n. Please get the scan result in result folder."
 	ToolTips['GachaScan'] = "Gacha scan: All components name will be scanned and sumup in result file."
 	ToolTips['QuickScan'] = "Quick scan: All scanned result will be display in debug window."
+	ToolTips['DBCreate'] = "DB Create: Create image DB based on component images and the scanned texts."
 
 
 	Notice = {}
@@ -603,5 +604,7 @@ class LanguagePackKR:
 	ToolTips['NormalScan'] = "일반 스캔: 텍스트를 csv 파일로 내보냅니다. 결과 폴더에서 스캔 결과를 받으십시오."
 	ToolTips['GachaScan'] = "Gacha 스캔: 모든 구성 요소 이름을 스캔하고 결과 파일에 요약합니다."
 	ToolTips['QuickScan'] = "빠른 스캔: 모든 스캔 결과가 디버그 창에 표시됩니다."
+	
+	ToolTips['DBCreate'] = "DB 생성: 컴포넌트 이미지와 스캔한 텍스트를 기반으로 이미지 DB를 생성합니다."
 
 	Notice = {}
