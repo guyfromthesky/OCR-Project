@@ -293,10 +293,10 @@ class LanguagePackEN:
 
 	ToolTips['Completed'] = "Completed"
 
-	ToolTips['NormalScan'] = "Normal scan: text will be exported into csv file\n. Please get the scan result in result folder."
-	ToolTips['GachaScan'] = "Gacha scan: All components name will be scanned and sumup in result file."
-	ToolTips['QuickScan'] = "Quick scan: All scanned result will be display in debug window."
-	ToolTips['DBCreate'] = "DB Create: Create image DB based on component images and the scanned texts."
+	ToolTips['TextScan'] = "Text scan (OCR): Get components name by text and export obtained list via file (csv)."
+	ToolTips['ImageScan'] = "Image scan (Image compare): Get components name by compare the image with DB and export obtained list via file (csv)."
+	ToolTips['AdvancedScan'] = "Advanced scan: Get components name by compare the image with DB. If the component is not exist in the DB, name of the DB will be get via its text."
+	ToolTips['DBCreate'] = "DB Create: Auto create DB from Image. Name of the components will be get from text."
 
 
 	Notice = {}
@@ -601,10 +601,10 @@ class LanguagePackKR:
 
 	ToolTips['Completed'] = "완전한"
 	
-	ToolTips['NormalScan'] = "일반 스캔: 텍스트를 csv 파일로 내보냅니다. 결과 폴더에서 스캔 결과를 받으십시오."
-	ToolTips['GachaScan'] = "Gacha 스캔: 모든 구성 요소 이름을 스캔하고 결과 파일에 요약합니다."
-	ToolTips['QuickScan'] = "빠른 스캔: 모든 스캔 결과가 디버그 창에 표시됩니다."
+	ToolTips['TextScan'] = "텍스트 스캔(OCR): 텍스트로 구성 요소 이름을 가져오고 파일(csv)을 통해 가져온 목록을 내보냅니다."
+	ToolTips['ImageScan'] = "이미지 스캔(이미지 비교): 이미지를 DB와 비교하여 구성 요소 이름을 가져오고 얻은 목록을 파일(csv)을 통해 내보냅니다."
+	ToolTips['AdvancedScan'] = "고급 스캔: 이미지와 DB를 비교하여 구성 요소 이름을 가져옵니다. 구성 요소가 DB에 존재하지 않는 경우 DB의 이름은 해당 텍스트를 통해 가져옵니다."
 	
-	ToolTips['DBCreate'] = "DB 생성: 컴포넌트 이미지와 스캔한 텍스트를 기반으로 이미지 DB를 생성합니다."
+	ToolTips['DBCreate'] = "DB 생성: Image에서 DB를 자동 생성합니다. 구성 요소의 이름은 텍스트에서 가져옵니다."
 
 	Notice = {}

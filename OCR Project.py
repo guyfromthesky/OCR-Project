@@ -59,7 +59,9 @@ import cv2
 import numpy as np
 import pytesseract
 
-import Levenshtein as lev
+#import Levenshtein as lev
+from rapidfuzz.distance import Levenshtein as lev_distance
+from rapidfuzz.distance import Indel as lev_ratio
 
 #from document_toolkit_function.py import *
 
@@ -240,7 +242,7 @@ class OCR_Project(Frame):
 		self.Option_Text_Update.grid(row=Row, column=5,columnspan=2,padx=0, pady=5, sticky=W)
 		self.Region_Type.set(1)
 
-		Btn_Input_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['AddAreaWithText'], command= self.Btn_OCR_Input_Area)
+		Btn_Input_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['AddAreaWithText'], command= self.Btn_OCR_Input_Text_Area)
 		Btn_Input_Area.grid(row=Row, column=7, padx=0, pady=5, sticky=W)
 
 		Label(Tab, text= self.LanguagePack.Label['BrowseType']).grid(row=Row, column=8, rowspan=2, pady=5, sticky=W)
@@ -257,9 +259,10 @@ class OCR_Project(Frame):
 		self.Str_Weight.grid(row=Row, column=4, padx=0, pady=5, sticky=W)
 		self.Str_Weight.bind("<Tab>", self.entry_next)	
 
+		# Update Template/ Text gacha
 		self.Option_Image_Update = Radiobutton(Tab, width= 10, text= "Image Area", value=2, variable=self.Region_Type, command=None)
 		self.Option_Image_Update.grid(row=Row, column=5,columnspan=2,padx=0, pady=5, sticky=W)
-		self.Option_Image_Update.configure(state=DISABLED)
+		#self.Option_Image_Update.configure(state=DISABLED)
 
 		self.Btn_Update_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['SaveConfig'], command= self.Btn_OCR_Update_Area)
 		self.Btn_Update_Area.grid(row=Row, column=7, padx=0, pady=5, sticky=W)
@@ -306,7 +309,7 @@ class OCR_Project(Frame):
 		Row += 1
 
 		Label(Tab, text= self.LanguagePack.Label['ScanType']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-		_scan_type = ['', 'Normal', 'Gacha', 'Quick', 'DB Create']
+		_scan_type = ['', 'Text only', 'Image only', 'Image and Text', 'DB Create']
 		Option_ScanType = OptionMenu(Tab, self.ScanType, *_scan_type, command = self.OCR_Setting_Set_Scan_Type)
 		Option_ScanType.config(width=10)
 		Option_ScanType.grid(row=Row, column=2,padx=0, pady=5, sticky=W)
@@ -537,7 +540,7 @@ class OCR_Project(Frame):
 
 		_scan_type = self.Configuration['OCR_TOOL']['scan_type']
 		self.ScanType.set(_scan_type)
-		if _scan_type == 'DB Create':
+		if _scan_type == 'Image and Text':
 			self.Option_Image_Update.configure(state=NORMAL)
 
 
@@ -621,10 +624,9 @@ class OCR_Project(Frame):
 			print('config_file', config_file)
 			self.Str_OCR_Config_Path.set(config_file)
 			self.remove_treeview()
-			if _scan_type == 'DB Create':
-				all_col = ['x', 'y', 'w', 'h', 'x1', 'y1', 'w1', 'h1']
-			else:
-				all_col = ['x', 'y', 'w', 'h']	
+
+			all_col = ['x', 'y', 'w', 'h', 'x1', 'y1', 'w1', 'h1']	
+			
 			with open(config_file, newline='', encoding='utf-8-sig') as csvfile:
 				reader = csv.DictReader(csvfile)
 				input_location = {}
@@ -634,10 +636,7 @@ class OCR_Project(Frame):
 							input_location[col] = location[col]
 						else:
 							input_location[col] = 0
-					if _scan_type == 'DB Create':
-						self.Treeview.insert('', 'end', text= '', values=(str(input_location['x']), str(input_location['y']), str(input_location['w']), str(input_location['h']), str(input_location['x1']), str(input_location['y1']), str(input_location['w1']), str(input_location['h1'])))
-					else:
-						self.Treeview.insert('', 'end', text= '', values=(str(input_location['x']), str(input_location['y']), str(input_location['w']), str(input_location['h'])))
+					self.Treeview.insert('', 'end', text= '', values=(str(input_location['x']), str(input_location['y']), str(input_location['w']), str(input_location['h']), str(input_location['x1']), str(input_location['y1']), str(input_location['w1']), str(input_location['h1'])))
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
 
@@ -653,19 +652,15 @@ class OCR_Project(Frame):
 			return
 		else:
 			with open(filename, 'w', newline='') as csvfile:
-				if _scan_type == 'DB Create':
-					fieldnames = ['x', 'y', 'w', 'h', 'x1', 'y1', 'w1', 'h1']
-				else:
-					fieldnames = ['x', 'y', 'w', 'h']	
+
+				fieldnames = ['x', 'y', 'w', 'h', 'x1', 'y1', 'w1', 'h1']
 			
 				writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 				writer.writeheader()
 				for row in self.Treeview.get_children():
 					child = self.Treeview.item(row)
-					if _scan_type == 'DB Create':
-						writer.writerow({'x': child["values"][0], 'y': child["values"][1], 'w': child["values"][2], 'h': child["values"][3], 'x1': child["values"][4], 'y1': child["values"][5], 'w1': child["values"][6], 'h1': child["values"][7]})
-					else:
-						writer.writerow({'x': child["values"][0], 'y': child["values"][1], 'w': child["values"][2], 'h': child["values"][3]})	
+					values = child["values"]	
+					writer.writerow({'x': values[0], 'y': values[1], 'w': values[2], 'h': values[3], 'x1': values[4], 'y1': values[5], 'w1': values[6], 'h1': values[7]})
 			
 	def Btn_OCR_Browse_Image_Data(self):
 		
@@ -752,25 +747,28 @@ class OCR_Project(Frame):
 				for row in self.Treeview.get_children():
 					child = self.Treeview.item(row)
 					im = cv2.rectangle(im, (child["values"][0], child["values"][1]), (child["values"][0] + child["values"][2], child["values"][1] + child["values"][3]), (255,0,0), 2)
-					if _scan_type == 'DB Create':
-						if len(child["values"]) == 8:
-							im = cv2.rectangle(im, (child["values"][4], child["values"][5]), (child["values"][4] + child["values"][6], child["values"][5] + child["values"][7]), (255,255,0), 2)
+					im = cv2.rectangle(im, (child["values"][4], child["values"][5]), (child["values"][4] + child["values"][6], child["values"][5] + child["values"][7]), (255,255,0), 2)
 
 				location = cv2.selectROI("Select TEXT area", im, showCrosshair=False,fromCenter=False)
 				im = cv2.rectangle(im, (location[0], location[1]), (location[0] + location[2], location[1] + location[3]), (255,0,0), 2)
 				cv2.destroyAllWindows() 
-				if _scan_type == 'DB Create':
+				if _scan_type in ['Image and Text', 'DB Create']:
 					location2 = cv2.selectROI("Select COMPONENT area", im, showCrosshair=False,fromCenter=False)
 					cv2.destroyAllWindows() 
 					self.Treeview.insert('', 'end', text= '', values=(str(location[0]), str(location[1]), str(location[2]), str(location[3]), str(location2[0]), str(location2[1]), str(location2[2]), str(location2[3]) ))
 				else:
-					self.Treeview.insert('', 'end', text= '', values=(str(location[0]), str(location[1]), str(location[2]), str(location[3])))	
+					self.Treeview.insert('', 'end', text= '', values=(str(location[0]), str(location[1]), str(location[2]), str(location[3]), str(0), str(0), str(0), str(0)))	
 			else:
 				self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])		
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])				
 
-	def Btn_OCR_Input_Area(self):
+	def Btn_OCR_Input_Text_Area(self):
+
+		self.Focused_Item = self.Treeview.focus()
+		child = self.Treeview.item(self.Focused_Item)
+		self.Btn_Update_Area.configure(state=NORMAL)
+
 		_x = self.Str_CenterX.get("1.0", END).replace('\n', '')
 		if _x == '': _x = 0
 		_y = self.Str_CenterY.get("1.0", END).replace('\n', '')
@@ -779,46 +777,50 @@ class OCR_Project(Frame):
 		if _w == '': _w = 0
 		_h = self.Str_Height.get("1.0", END).replace('\n', '')
 		if _h == '': _h = 0
-		self.Treeview.insert('', 'end', text= '', values=(str(_x), str(_y), str(_w), str(_h)))
+		
+		if self.Region_Type.get() == 1:
+			self.Treeview.insert('', 'end', text= '', values=(str(int(_x)), str(int(_y)), str(int(_w)), str(int(_h)), child["values"][4], child["values"][5], child["values"][6], child["values"][7]))
+		else:
+			self.Treeview.insert('', 'end', text= '', values=(child["values"][0], child["values"][1], child["values"][2], child["values"][3], str(int(_x)), str(int(_y)), str(int(_w)), str(int(_h))))
 
-		self.Update_Treeview_Advanced_UI()
-
+		#self.Update_Treeview_Advanced_UI()
 
 	def Treeview_OCR_Select_Row(self, event):
 		'''
 		Function activate when double click an entry from Treeview
 		'''
+		self.Focused_Item = self.Treeview.focus()
+		child = self.Treeview.item(self.Focused_Item)
+		self.Btn_Update_Area.configure(state=NORMAL)
+
+		
 		if self.Region_Type.get() == 1:
-			self.Focused_Item = self.Treeview.focus()
-			child = self.Treeview.item(self.Focused_Item)
-			self.Btn_Update_Area.configure(state=NORMAL)
-			self.Str_CenterX.delete("1.0", END)
-			self.Str_CenterX.insert("end", child["values"][0])
-
-			self.Str_CenterY.delete("1.0", END)
-			self.Str_CenterY.insert("end", child["values"][1])
-
-			self.Str_Weight.delete("1.0", END)
-			self.Str_Weight.insert("end", child["values"][2])
-
-			self.Str_Height.delete("1.0", END)
-			self.Str_Height.insert("end", child["values"][3])
+			x = 0
 		else:
-			self.Focused_Item = self.Treeview.focus()
-			child = self.Treeview.item(self.Focused_Item)
-			self.Btn_Update_Area.configure(state=NORMAL)
+			x = 4	
+		self.Str_CenterX.delete("1.0", END)
+		try:
+			self.Str_CenterX.insert("end", child["values"][x])
+		except:
+			self.Str_CenterX.insert("end", 0)
+			
+		self.Str_CenterY.delete("1.0", END)
+		try:
+			self.Str_CenterY.insert("end", child["values"][x+1])
+		except:
+			self.Str_CenterY.insert("end", 0)
 
-			self.Str_CenterX.delete("1.0", END)
-			self.Str_CenterX.insert("end", child["values"][4])
+		self.Str_Weight.delete("1.0", END)
+		try:
+			self.Str_Weight.insert("end", child["values"][x+2])
+		except:
+			self.Str_Weight.insert("end", 0)
 
-			self.Str_CenterY.delete("1.0", END)
-			self.Str_CenterY.insert("end", child["values"][5])
-
-			self.Str_Weight.delete("1.0", END)
-			self.Str_Weight.insert("end", child["values"][6])
-
-			self.Str_Height.delete("1.0", END)
-			self.Str_Height.insert("end", child["values"][7])	
+		self.Str_Height.delete("1.0", END)
+		try:
+			self.Str_Height.insert("end", child["values"][x+3])
+		except:
+			self.Str_Height.insert("end", 0)
 
 
 	def Btn_OCR_Update_Area(self):
@@ -834,18 +836,13 @@ class OCR_Project(Frame):
 			_h = self.Str_Height.get("1.0", END).replace('\n', '')
 			if _h == '': _h = 0
 			
-			if self.Region_Type.get() == 1:		
-				child["values"][0] = _x
-				child["values"][1] = _y
-				child["values"][2] = _w
-				child["values"][3] = _h
+			if self.Region_Type.get() == 1:
+				self.Treeview.item(self.Focused_Item, text="", values=(str(int(_x)), str(int(_y)), str(int(_w)), str(int(_h)), child["values"][4], child["values"][5], child["values"][6], child["values"][7]))
 			else:
-				child["values"][4] = _x
-				child["values"][5] = _y
-				child["values"][6] = _w
-				child["values"][7] = _h
-	
-			self.Treeview.item(self.Focused_Item, text="", values=(child["values"]))
+				self.Treeview.item(self.Focused_Item, text="", values=(child["values"][0], child["values"][1], child["values"][2], child["values"][3], str(int(_x)), str(int(_y)), str(int(_w)), str(int(_h))))
+
+
+			#self.Treeview.item(self.Focused_Item, text="", values=(child["values"]))
 			self.Focused_Item = None
 			self.Btn_Update_Area.configure(state=DISABLED)
 		
@@ -877,9 +874,7 @@ class OCR_Project(Frame):
 				im = self.Function_Load_Img(self.OCR_File_Path[_index])
 				for row in self.Treeview.get_children():
 					child = self.Treeview.item(row)
-					if _scan_type == 'DB Create':
-						if len(child["values"]) == 8:
-							im = cv2.rectangle(im, (child["values"][4], child["values"][5]), (child["values"][4] + child["values"][6], child["values"][5] + child["values"][7]), (255,255,0), 2)
+					im = cv2.rectangle(im, (child["values"][4], child["values"][5]), (child["values"][4] + child["values"][6], child["values"][5] + child["values"][7]), (255,255,0), 2)
 					im = cv2.rectangle(im, (child["values"][0], child["values"][1]), (child["values"][0] + child["values"][2], child["values"][1] + child["values"][3]), (255,0,0), 2)
 					
 				cv2.imshow("Image", im)
@@ -1025,7 +1020,27 @@ class OCR_Project(Frame):
 
 
 		db_list = []
-		if _scan_type == 'Gacha':
+		if _scan_type == 'Text only':
+			_db_path = self.DBPath.get()
+			if os.path.isfile(_db_path):		
+				with open(_db_path, newline='', encoding='utf-8-sig') as csvfile:
+					reader = csv.DictReader(csvfile)
+					for language in reader:
+						
+						if _tess_language in language:
+							db_list.append(language[_tess_language])
+			self.Write_Debug('DB length:' + str(len(db_list)))
+		elif _scan_type == 'Image only':
+			_db_path = self.DBPath.get()
+			if os.path.isfile(_db_path):		
+				with open(_db_path, newline='', encoding='utf-8-sig') as csvfile:
+					reader = csv.DictReader(csvfile)
+					for language in reader:
+						
+						if _tess_language in language:
+							db_list.append(language[_tess_language])
+			self.Write_Debug('DB length:' + str(len(db_list)))	
+		elif _scan_type == 'Image and Text':
 			_db_path = self.DBPath.get()
 			if os.path.isfile(_db_path):		
 				with open(_db_path, newline='', encoding='utf-8-sig') as csvfile:
@@ -1044,9 +1059,9 @@ class OCR_Project(Frame):
 						
 						if _tess_language in language:
 							db_list.append(language[_tess_language])
-			self.Write_Debug('DB length:' + str(len(db_list)))
+			self.Write_Debug('DB length:' + str(len(db_list)))	
 	
-		self.OCR_Scan_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas,_scan_type, db_list, ))
+		self.OCR_Scan_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas,_scan_type, _db_path, ))
 		
 		self.OCR_Scan_Process.start()
 		
@@ -1133,24 +1148,19 @@ class OCR_Project(Frame):
 		self.Write_Debug(self.LanguagePack.ToolTips['ScanTypeUpdate'] + str(scan_type) + '.')
 		if scan_type == 'DB Create':
 			self.Write_Debug(self.LanguagePack.ToolTips['DBCreate'])
-			self.Option_Image_Update.configure(state=NORMAL)
-			return
-
-		self.Option_Image_Update.configure(state=DISABLED)
-		self.Region_Type.set(1)
-		if scan_type == 'Normal':
-			self.Write_Debug(self.LanguagePack.ToolTips['NormalScan'])
-		elif scan_type == 'Gacha':
-			self.Write_Debug(self.LanguagePack.ToolTips['GachaScan'])
-		elif scan_type == 'Quick':
-			self.Write_Debug(self.LanguagePack.ToolTips['QuickScan'])
+		elif scan_type == 'Text only':
+			self.Write_Debug(self.LanguagePack.ToolTips['TextScan'])
+		elif scan_type == 'Image only':
+			self.Write_Debug(self.LanguagePack.ToolTips['ImageScan'])
+		elif scan_type == 'Image and Text':
+			self.Write_Debug(self.LanguagePack.ToolTips['AdvancedScan'])
 	
 
 
 
 	def OCR_Setting_Set_Browse_Type(self):
 		_browse_type = self.Browse_Type.get()
-		if _browse_type != 'DB Create':
+		if _browse_type == 1:
 			_status = 'folder'
 		else:
 			_status = 'file'
@@ -1158,13 +1168,6 @@ class OCR_Project(Frame):
 		self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'browsetype', _browse_type)
 
 		self.Write_Debug(self.LanguagePack.ToolTips['BrowseTypeUpdate'] + str(_status))
-
-	def OCR_Setting_Set_Location_Type(self):
-		_scan_type = self.ScanType.get()
-		if _scan_type != 'DB Create':
-			self.Option_Image_Update.configure(state=NORMAL)
-		#self.Write_Debug(self.LanguagePack.ToolTips['BrowseTypeUpdate'] + str(_scan_type))
-
 
 	def OCR_Setting_Set_Working_Resolution(self):
 		_resolution_index = self.Resolution.get()
@@ -1190,12 +1193,13 @@ class OCR_Project(Frame):
 ###########################################################################################
 
 def Function_Batch_OCR_Execute(
-	Result_Queue, Status_Queue, Process_Queue, tess_path, tess_language, tess_data, image_files, result_file, ratio, scan_areas, scan_type = 'Normal', db_list = [], **kwargs):
+	Result_Queue, Status_Queue, Process_Queue, tess_path, tess_language, tess_data, image_files, result_file, ratio, scan_areas, scan_type = 'Text only', db_path = [], **kwargs):
 	
 	advanced_tessdata_dir_config = '--psm 7 --tessdata-dir ' + '"' + tess_data + '"'
 
 	if tess_language == '':
 		tess_language = 'kor'
+
 
 	number_of_processes = multiprocessing.cpu_count()
 
@@ -1204,9 +1208,13 @@ def Function_Batch_OCR_Execute(
 	for image in image_files:
 		str_filename = str(image)
 		_task_list.append(str_filename)
+
 	print('scan type: ', scan_type)
-	if scan_type == 'Gacha':
-		_output_dir = os.path.dirname(result_file)
+
+	_output_dir = os.path.dirname(result_file)
+
+	if scan_type == 'Text only':
+
 		_all_image_dir = _output_dir + '\\all_images'
 		_unique_image_dir = _output_dir + '\\unique_images'
 		current_ratio = 0
@@ -1221,7 +1229,7 @@ def Function_Batch_OCR_Execute(
 
 		Status_Queue.put('Crop image')
 		process_ratio = 0.04
-		image_info = Function_Crop_All_Image(Process_Queue, image_files, scan_areas, ratio, _all_image_dir, process_ratio, current_ratio)
+		image_info = Function_Crop_All_Text(Process_Queue, image_files, scan_areas, ratio, _all_image_dir, process_ratio, current_ratio)
 		current_ratio+=process_ratio
 
 
@@ -1242,9 +1250,14 @@ def Function_Batch_OCR_Execute(
 		process_count = 0
 		total_process = len(_draft_result.keys())
 		Status_Queue.put('Scan text from unique images(' + str(total_process) + ')')
+		
+		DB  = Function_Import_DB(db_path)
 		new_db_list = []
-		for word in db_list:
-			new_db_list.append(word.replace(' ', '').lower())
+		
+		for element in DB:
+			word = element[tess_language]
+			new_db_list.append(word.replace(' ','').lower())
+		
 		for image in _draft_result:
 			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, _unique_image_dir + '\\' + image))
 			_match_type = 'none'
@@ -1255,16 +1268,17 @@ def Function_Batch_OCR_Execute(
 				if _temp_text in new_db_list:
 					# exact match
 					_index = new_db_list.index(_temp_text)
-					key = db_list[_index]
 					_match_type = 'exact'
+			
 				else:
 					# similarity check
 					_dist = len(_temp_text)
 					_ratio = 0
 					_word = ''
+					
 					for word in new_db_list:
-						Distance = lev.distance(_temp_text, word)		
-						Ratio = lev.ratio(_temp_text, word)
+						Distance = lev_distance.distance(_temp_text, word)		
+						Ratio = lev_ratio.normalized_similarity(_temp_text, word)
 						if Distance <= _dist and Ratio >= _ratio:
 							_dist = Distance
 							_ratio = Ratio
@@ -1272,16 +1286,17 @@ def Function_Batch_OCR_Execute(
 
 					if _dist/len(_temp_text) <= 0.2 and _ratio >= 0.8:
 						_index = new_db_list.index(_word)
-						_key = db_list[_index]
+						_key = new_db_list[_index]
 						Status_Queue.put('Text has been corrected from: ' + key + ' to ' + _key)
 						key = _key
 						_match_type = 'corrected'
 					elif _dist/len(_temp_text) < 0.34 and _ratio > 0.66 and len(_temp_text) == len(_word):
 						_index = new_db_list.index(_word)
-						_key = db_list[_index]
+						_key = new_db_list[_index]
 						Status_Queue.put('Text has been corrected from: ' + key + ' to ' + _key)
 						key = _key
 						_match_type = 'corrected'	
+					
 			
 			error_count = 0
 			if len(key.replace(' ','')) == 0:
@@ -1303,67 +1318,24 @@ def Function_Batch_OCR_Execute(
 			Process_Queue.put(percent)		
 		
 		current_ratio += process_ratio
-
-		row_height = scan_areas[0][3]
-		cell_width = scan_areas[0][2]* (5/30)
 		
 		Status_Queue.put('Export test result')
-
-
-		Function_Export_Gacha_Test_Result(result, _unique_image_dir,result_file, cell_width, row_height)
+		
+		Function_Export_Gacha_Test_Result(result, _unique_text_image_dir,result_file, cell_width, row_height)
 		percent = ShowProgress(1, 1)
 		Process_Queue.put(percent)
-		return
-	elif scan_type == 'Normal':
-		_total = len(_task_list)	
 
-		_complete = 0
-		Area_Name = ['Area_' + str(i) for i in range(len(scan_areas))]
-		Title = ['FileName'] + Area_Name
-
-		with open(result_file, 'w', newline='', encoding='utf-8-sig') as csvfile:
-			writer = csv.writer(csvfile)
-			writer.writerow(Title)
+	elif scan_type == 'Image only':	
 		
-		while len(_task_list) > 0:
-			if len(_task_list) > number_of_processes:
-				_new_task_count = number_of_processes
-			else:
-				_new_task_count = len(_task_list)
-
-			for w in range(_new_task_count):
-
-				input_file = _task_list[0]
-
-				p = Process(target=Get_Text_From_Single_Image, args=(tess_path, tess_language, advanced_tessdata_dir_config, input_file, ratio, scan_areas, result_file,))
-
-				del _task_list[0]
-				processes.append(p)
-				p.start()
-
-			for p in processes :
-				p.join()
-				_complete+=1
-			
-			percent = ShowProgress(_complete, _total)
-			Process_Queue.put(percent)
-	elif scan_type == 'DB Create':
-		_output_dir = os.path.dirname(result_file)
-		
-		_all_text_image_dir = _output_dir + '\\all_text_images'
-		_unique_text_image_dir = _output_dir + '\\unique_text_images'
-
-		_all_component_image_dir = _output_dir + '\\all_component_images'
-		_unique_component_image_dir = _output_dir + '\\unique_component_images'
-
+		_all_image_dir = _output_dir + '\\all_images'
+		_unique_image_dir = _output_dir + '\\unique_images'
 		current_ratio = 0
 		process_ratio = 0.01
 		
-		initFolder(_all_text_image_dir)
-		initFolder(_unique_text_image_dir)
+		DB = Function_Import_DB()
 
-		initFolder(_all_component_image_dir)
-		initFolder(_unique_component_image_dir)
+		initFolder(_all_image_dir)
+		initFolder(_unique_image_dir)
 		
 		percent = ShowProgress(process_ratio, 100)
 		current_ratio+=process_ratio
@@ -1371,37 +1343,27 @@ def Function_Batch_OCR_Execute(
 
 		Status_Queue.put('Crop image')
 		process_ratio = 0.04
-		
-		text_image_info = Function_Crop_All_Image(Process_Queue, image_files, scan_areas, ratio, _all_text_image_dir, process_ratio, current_ratio)
-		component_image_info = Function_Crop_All_Image(Process_Queue, image_files, component_areas, ratio, _all_component_image_dir, process_ratio, current_ratio)
-
+		image_info = Function_Crop_All_Image(Process_Queue, image_files, scan_areas, ratio, _all_image_dir, process_ratio, current_ratio)
 		current_ratio+=process_ratio
-		
-		Status_Queue.put('Filter unique components('+ str(component_image_info['count']) + ')')
+
+
+		Status_Queue.put('Filter unique images('+ str(image_info['count']) + ')')
 		process_ratio =0.10
-
-		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_text_image_dir, _unique_text_image_dir, process_ratio, current_ratio)
-		_component_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_component_image_dir, _unique_component_image_dir, process_ratio, current_ratio)
-		
+		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_image_dir, _unique_image_dir, process_ratio, current_ratio)
 		current_ratio+=process_ratio
-		
-		count = 0
-		for image in _draft_result:
-			count = count + _draft_result[image]
 	
 		result = {}
 		
 		process_ratio = (1-current_ratio - 0.01)
 		_output_dir = os.path.dirname(result_file)
-		result_file = _output_dir + '\\' + 'Gacha_Test_Result' + '.xlsx'
+		result_file = _output_dir + '\\' + 'Inage_Analyze_Result' + '.xlsx'
 		process_count = 0
 		total_process = len(_draft_result.keys())
+
 		Status_Queue.put('Scan text from unique images(' + str(total_process) + ')')
-		new_db_list = []
-		for word in db_list:
-			new_db_list.append(word.replace(' ', '').lower())
+		
 		for image in _draft_result:
-			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, _unique_text_image_dir + '\\' + image))
+			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, _unique_image_dir + '\\' + image))
 			_match_type = 'none'
 			if len(new_db_list)> 0:
 				_temp_text = key.replace(' ','').lower()
@@ -1410,33 +1372,8 @@ def Function_Batch_OCR_Execute(
 				if _temp_text in new_db_list:
 					# exact match
 					_index = new_db_list.index(_temp_text)
-					key = db_list[_index]
+					key = new_db_list[_index]
 					_match_type = 'exact'
-				else:
-					# similarity check
-					_dist = len(_temp_text)
-					_ratio = 0
-					_word = ''
-					for word in new_db_list:
-						Distance = lev.distance(_temp_text, word)		
-						Ratio = lev.ratio(_temp_text, word)
-						if Distance <= _dist and Ratio >= _ratio:
-							_dist = Distance
-							_ratio = Ratio
-							_word = word
-
-					if _dist/len(_temp_text) <= 0.2 and _ratio >= 0.8:
-						_index = new_db_list.index(_word)
-						_key = db_list[_index]
-						Status_Queue.put('Text has been corrected from: ' + key + ' to ' + _key)
-						key = _key
-						_match_type = 'corrected'
-					elif _dist/len(_temp_text) < 0.34 and _ratio > 0.66 and len(_temp_text) == len(_word):
-						_index = new_db_list.index(_word)
-						_key = db_list[_index]
-						Status_Queue.put('Text has been corrected from: ' + key + ' to ' + _key)
-						key = _key
-						_match_type = 'corrected'	
 			
 			error_count = 0
 			if len(key.replace(' ','')) == 0:
@@ -1462,17 +1399,20 @@ def Function_Batch_OCR_Execute(
 		row_height = scan_areas[0][3]
 		cell_width = scan_areas[0][2]* (5/30)
 		
-		Status_Queue.put('Export test result')
-
-
-		Function_Export_Gacha_Test_Result(result, _unique_text_image_dir,result_file, cell_width, row_height)
-		percent = ShowProgress(1, 1)
-		Process_Queue.put(percent)
+		
 		return
-	
-	else:
-		Status_Queue.put('Sorry, this feature is not available now.')	
+		Status_Queue.put('Done')
 
+	elif scan_type == 'Image and Text':	
+		Status_Queue.put('WIP')
+
+	elif scan_type == 'DB Create':	
+		Status_Queue.put('WIP')	
+
+	elif scan_type == 'DB Create':	
+		Status_Queue.put('WIP')	
+	else:
+		Status_Queue.put('Unsupport type')	
 
 def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_config, input_image, ratio, scan_areas, result_file,):
 
@@ -1528,7 +1468,7 @@ def Function_Compare_2_Image(source_image_path, target_image_path):
 	else:
 		return False
 
-def Function_Crop_All_Image(Process_Queue, source_images, scan_areas, ratio, output_dir, start_percent, process_ratio):
+def Function_Crop_All_Text(Process_Queue, source_images, scan_areas, ratio, output_dir, start_percent, process_ratio):
 	
 	total_task = len(scan_areas) * len(source_images)
 	amount = 0
@@ -1552,6 +1492,48 @@ def Function_Crop_All_Image(Process_Queue, source_images, scan_areas, ratio, out
 		for area in scan_areas:
 			_area_count +=1
 			imCrop = _img[int(area[1]):int(area[1]+_avg_h), int(area[0]):int(area[0]+_avg_w)]
+			_name = output_dir + '\\' + sourcename + '_' + str(_area_count) + ext
+			
+			cv2.imwrite(_name, imCrop)
+
+			image_info = {}
+			image_info['link'] = _name
+			image_info['area'] = _area_count
+
+			info[sourcename].append(image_info)
+			amount+=1
+
+		percent = ShowProgress(amount, total_task, process_ratio, start_percent)
+		Process_Queue.put(percent)		
+
+	info['count'] = amount
+
+	return info
+
+def Function_Crop_All_Image(Process_Queue, source_images, scan_areas, ratio, output_dir, start_percent, process_ratio):
+	
+	total_task = len(scan_areas) * len(source_images)
+	amount = 0
+	_total_w = 0
+	_total_h = 0
+
+	for area in scan_areas:
+		_total_w += area[6]
+		_total_h += area[7]
+	_avg_w = _total_w/(len(scan_areas))
+	_avg_h = _total_h/(len(scan_areas))
+
+	info = {}
+
+	for image in source_images:
+		_area_count = 0
+		baseName = os.path.basename(image)
+		sourcename, ext = os.path.splitext(baseName)
+		_img = Load_Image_by_Ratio(image, ratio)
+		info[sourcename] = []
+		for area in scan_areas:
+			_area_count +=1
+			imCrop = _img[int(area[5]):int(area[5]+_avg_h), int(area[4]):int(area[4]+_avg_w)]
 			_name = output_dir + '\\' + sourcename + '_' + str(_area_count) + ext
 			
 			cv2.imwrite(_name, imCrop)
@@ -1612,6 +1594,22 @@ def Export_Unique_Image(path, new_folder):
 	baseName = os.path.basename(path)
 	new_name = new_folder +'\\' + baseName
 	cv2.imwrite(new_name, unique_image)
+
+def Function_Import_DB(db_path):
+
+	_all_db = []
+	col_name = ['eng', 'kor', 'path']
+	with open(db_path, newline='', encoding='utf-8-sig') as csvfile:
+		all_components = csv.DictReader(csvfile)
+		for component in all_components:
+			_db_entry = {}
+			for key_name in component:
+				if key_name == 'path':
+					_db_entry['template'] = cv2.imread(component[key_name])
+				else:
+					_db_entry[key_name] = component[key_name]
+			_all_db.append(_db_entry)
+	return _all_db
 
 def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_width, row_height):
 
