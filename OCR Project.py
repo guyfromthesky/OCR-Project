@@ -3,7 +3,7 @@ from genericpath import isfile
 import os
 import csv
 from posixpath import basename
-from shutil import copyfile
+from shutil import copyfile, rmtree
 from re import match
 import sys
 import random
@@ -1008,10 +1008,18 @@ class OCR_Project(Frame):
 		Image_Files = self.OCR_File_Path
 		Image_Folder =  os.path.dirname( self.OCR_File_Path[0])
 
-		timestamp = Function_Get_TimeStamp()			
-		self.Output_Result_Folder = Image_Folder + '/' + 'Scan_Result_' + str(timestamp)
-		if not os.path.isdir(self.Output_Result_Folder):
-			os.mkdir(self.Output_Result_Folder)
+
+		timestamp = Function_Get_TimeStamp()
+		
+		_db_path = self.DBPath.get()
+		_scan_type = self.ScanType.get()
+		if _scan_type == 'DB Create':
+			self.Output_Result_Folder = os.path.dirname(_db_path)
+			print(self.Output_Result_Folder)
+		else:
+			self.Output_Result_Folder = Image_Folder + '/' + 'Scan_Result_' + str(timestamp)
+			if not os.path.isdir(self.Output_Result_Folder):
+				os.mkdir(self.Output_Result_Folder)
 		output_result_file = self.Output_Result_Folder + '/result.csv'
 		_ratio = 720	
 		_scan_areas = []
@@ -1027,11 +1035,6 @@ class OCR_Project(Frame):
 		#_tess_language = self.WorkingLanguage.get()
 
 		self.Btn_Open_Result.configure(state=NORMAL)
-
-		_scan_type = self.ScanType.get()
-
-		_db_path = self.DBPath.get()
-
 		db_list = []
 
 		self.OCR_Scan_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas,_scan_type, _db_path, ))
@@ -1282,7 +1285,7 @@ def Function_Batch_OCR_Execute(
 		current_ratio += process_ratio
 		
 		Status_Queue.put('Export test result')
-		Function_Export_Auto_DB(result, _unique_text_image_dir,result_file, cell_width, row_height)
+		Function_Export_Gacha_Test_Result(result, _unique_text_image_dir,result_file, cell_width, row_height)
 		percent = ShowProgress(1, 1)
 		Process_Queue.put(percent)
 
@@ -1386,12 +1389,12 @@ def Function_Batch_OCR_Execute(
 		process_ratio =0.5
 
 		_draft_result = Function_Filter_Unique_DB(Process_Queue, image_info, _unique_image_dir, process_ratio, current_ratio)
-		print('_draft_result', _draft_result)
+
 		current_ratio+=process_ratio
 		total_process = len(_draft_result)
 		
 		for component_detail in _draft_result:
-			#print('component_detail', component_detail)
+	
 			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, component_detail['text_raw'][0]))
 			key = key.replace(' ','')
 			component_detail['text'] = key
@@ -1399,13 +1402,13 @@ def Function_Batch_OCR_Execute(
 			process_count+=1	
 			percent = ShowProgress(process_count, total_process, process_ratio, current_ratio )
 			Process_Queue.put(percent)		
-		
+		rmtree(_template_dir)
+		#rmtree(_output_dir)
 		current_ratio += process_ratio
 		
 		Status_Queue.put('Export test result')
-
-		print('result', _draft_result)
-		Function_Export_Gacha_Test_Result(_draft_result, _unique_image_dir,result_file, cell_width, row_height)
+		Function_Export_Auto_DB(_draft_result, tess_language, db_path)
+		Status_Queue.put('Append ' + str(len(_draft_result)) + ' to DB.')
 		percent = ShowProgress(1, 1)
 		Process_Queue.put(percent)
 		
@@ -1626,7 +1629,7 @@ def Function_Crop_All_Image(Process_Queue, source_images, scan_areas, ratio, out
 def Function_Filter_Unique_DB(Process_Queue, all_image_info, unique_images_dir, start_percent, process_ratio):
 
 	#all_image_info['area'] = _area_count	
-
+	unique_images_folder = os.path.basename(unique_images_dir)
 	all_component_images = []
 	all_text_images = []
 	for full_image in all_image_info:
@@ -1637,19 +1640,22 @@ def Function_Filter_Unique_DB(Process_Queue, all_image_info, unique_images_dir, 
 	
 	unique = []
 	unique_data = []
-	element = {}
+	
 	process = 0
 	all_process = len(all_component_images)
 
 	for component_image in all_component_images:
 		baseName = os.path.basename(component_image)
+		element = {}
 		if len(unique_data) == 0:
-			element['component'] = baseName
+			
+			element['component'] = unique_images_folder + '\\' + baseName
 			_index = all_component_images.index(component_image)
 			element['text_raw'] = [all_text_images[_index]]
 			unique_data.append(element)
 			unique.append(component_image)
 			Export_Unique_Image(component_image, unique_images_dir)
+			Export_Unique_Image(all_text_images[_index], unique_images_dir)
 		else:
 			all_result = False
 			for target_image in unique:
@@ -1658,17 +1664,19 @@ def Function_Filter_Unique_DB(Process_Queue, all_image_info, unique_images_dir, 
 					all_result = True
 					break
 			if all_result == False:
-				element['component'] = baseName
+				element['component'] = unique_images_folder + '\\' + baseName
 				_index = all_component_images.index(component_image)
+	
 				element['text_raw'] = [all_text_images[_index]]
 				unique_data.append(element)
 				unique.append(component_image)
 				Export_Unique_Image(component_image, unique_images_dir)
-
+				Export_Unique_Image(all_text_images[_index], unique_images_dir)
+	
 		process+=1		
 		percent = ShowProgress(process, all_process, start_percent, process_ratio)
 		Process_Queue.put(percent)			
-	print('Tocal unique:', len(unique))
+
 	return unique_data
 
 def Function_Filter_Unique_Image(Process_Queue, all_image_dir, unique_images_dir, start_percent, process_ratio):
@@ -1865,14 +1873,16 @@ def Function_Export_Image_Compare_Test_Result(result_obj, image_dir, result_path
 	summary.save(result_path)	
 	summary.close()
 
-def Function_Export_Auto_DB(result_obj, image_dir, result_path):
+def Function_Export_Auto_DB(result_obj, tess_language, result_path):
 	print('result_obj', result_obj)
+	_exist = os.path.isfile(result_path)
 	with open(result_path, 'a', newline='', encoding='utf-8-sig') as csvfile:
 		fieldnames = ['kor', 'eng', 'path']
 		writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-		writer.writeheader()
-		for component in result_obj:
-			writer.writerow({'Components': component, 'Amount': _gacha[component]})
+		if not _exist:
+			writer.writeheader()
+		for component_details in result_obj:
+			writer.writerow({'path': component_details['component'], tess_language: component_details['text']})
 
 
 def Function_Analyze_Gacha_Data(_raw_data, col_name):
