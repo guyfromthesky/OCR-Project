@@ -1,10 +1,13 @@
 #System variable and io handling
+from genericpath import isfile
 import os
 import csv
 from posixpath import basename
+from shutil import copyfile
 from re import match
 import sys
 import random
+
 
 import configparser
 #Regular expression handlings
@@ -746,18 +749,22 @@ class OCR_Project(Frame):
 
 				for row in self.Treeview.get_children():
 					child = self.Treeview.item(row)
-					im = cv2.rectangle(im, (child["values"][0], child["values"][1]), (child["values"][0] + child["values"][2], child["values"][1] + child["values"][3]), (255,0,0), 2)
-					im = cv2.rectangle(im, (child["values"][4], child["values"][5]), (child["values"][4] + child["values"][6], child["values"][5] + child["values"][7]), (255,255,0), 2)
-
-				location = cv2.selectROI("Select TEXT area", im, showCrosshair=False,fromCenter=False)
-				im = cv2.rectangle(im, (location[0], location[1]), (location[0] + location[2], location[1] + location[3]), (255,0,0), 2)
-				cv2.destroyAllWindows() 
-				if _scan_type in ['Image and Text', 'DB Create']:
+					if _scan_type in ['Image and Text', 'DB Create', 'Text only']:
+						im = cv2.rectangle(im, (child["values"][0], child["values"][1]), (child["values"][0] + child["values"][2], child["values"][1] + child["values"][3]), (255,0,0), 2)
+					if _scan_type in ['Image and Text', 'DB Create', 'Image only']:
+						im = cv2.rectangle(im, (child["values"][4], child["values"][5]), (child["values"][4] + child["values"][6], child["values"][5] + child["values"][7]), (255,255,0), 2)
+				location = [0,0,0,0]
+				location2 = [0,0,0,0]
+				if _scan_type in ['Image and Text', 'DB Create', 'Text only']:
+					location = cv2.selectROI("Select TEXT area", im, showCrosshair=False,fromCenter=False)
+					im = cv2.rectangle(im, (location[0], location[1]), (location[0] + location[2], location[1] + location[3]), (255,0,0), 2)
+					cv2.destroyAllWindows() 
+				if _scan_type in ['Image and Text', 'DB Create', 'Image only']:
 					location2 = cv2.selectROI("Select COMPONENT area", im, showCrosshair=False,fromCenter=False)
 					cv2.destroyAllWindows() 
-					self.Treeview.insert('', 'end', text= '', values=(str(location[0]), str(location[1]), str(location[2]), str(location[3]), str(location2[0]), str(location2[1]), str(location2[2]), str(location2[3]) ))
-				else:
-					self.Treeview.insert('', 'end', text= '', values=(str(location[0]), str(location[1]), str(location[2]), str(location[3]), str(0), str(0), str(0), str(0)))	
+				
+				self.Treeview.insert('', 'end', text= '', values=(str(location[0]), str(location[1]), str(location[2]), str(location[3]), str(location2[0]), str(location2[1]), str(location2[2]), str(location2[3]) ))
+				
 			else:
 				self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])		
 		else:
@@ -874,8 +881,13 @@ class OCR_Project(Frame):
 				im = self.Function_Load_Img(self.OCR_File_Path[_index])
 				for row in self.Treeview.get_children():
 					child = self.Treeview.item(row)
-					im = cv2.rectangle(im, (child["values"][4], child["values"][5]), (child["values"][4] + child["values"][6], child["values"][5] + child["values"][7]), (255,255,0), 2)
-					im = cv2.rectangle(im, (child["values"][0], child["values"][1]), (child["values"][0] + child["values"][2], child["values"][1] + child["values"][3]), (255,0,0), 2)
+
+					if _scan_type in ['Image and Text', 'DB Create', 'Image only']:
+						if child["values"][6] > 0 and child["values"][7] >0:
+							im = cv2.rectangle(im, (child["values"][4], child["values"][5]), (child["values"][4] + child["values"][6], child["values"][5] + child["values"][7]), (255,255,0), 2)
+					if _scan_type in ['Image and Text', 'DB Create', 'Text only']:
+						if child["values"][2] > 0 and child["values"][3] >0:	
+							im = cv2.rectangle(im, (child["values"][0], child["values"][1]), (child["values"][0] + child["values"][2], child["values"][1] + child["values"][3]), (255,0,0), 2)
 					
 				cv2.imshow("Image", im)
 				cv2.waitKey(0)
@@ -1018,49 +1030,10 @@ class OCR_Project(Frame):
 
 		_scan_type = self.ScanType.get()
 
+		_db_path = self.DBPath.get()
 
 		db_list = []
-		if _scan_type == 'Text only':
-			_db_path = self.DBPath.get()
-			if os.path.isfile(_db_path):		
-				with open(_db_path, newline='', encoding='utf-8-sig') as csvfile:
-					reader = csv.DictReader(csvfile)
-					for language in reader:
-						
-						if _tess_language in language:
-							db_list.append(language[_tess_language])
-			self.Write_Debug('DB length:' + str(len(db_list)))
-		elif _scan_type == 'Image only':
-			_db_path = self.DBPath.get()
-			if os.path.isfile(_db_path):		
-				with open(_db_path, newline='', encoding='utf-8-sig') as csvfile:
-					reader = csv.DictReader(csvfile)
-					for language in reader:
-						
-						if _tess_language in language:
-							db_list.append(language[_tess_language])
-			self.Write_Debug('DB length:' + str(len(db_list)))	
-		elif _scan_type == 'Image and Text':
-			_db_path = self.DBPath.get()
-			if os.path.isfile(_db_path):		
-				with open(_db_path, newline='', encoding='utf-8-sig') as csvfile:
-					reader = csv.DictReader(csvfile)
-					for language in reader:
-						
-						if _tess_language in language:
-							db_list.append(language[_tess_language])
-			self.Write_Debug('DB length:' + str(len(db_list)))
-		elif _scan_type == 'DB Create':
-			_db_path = self.DBPath.get()
-			if os.path.isfile(_db_path):		
-				with open(_db_path, newline='', encoding='utf-8-sig') as csvfile:
-					reader = csv.DictReader(csvfile)
-					for language in reader:
-						
-						if _tess_language in language:
-							db_list.append(language[_tess_language])
-			self.Write_Debug('DB length:' + str(len(db_list)))	
-	
+
 		self.OCR_Scan_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas,_scan_type, _db_path, ))
 		
 		self.OCR_Scan_Process.start()
@@ -1200,28 +1173,17 @@ def Function_Batch_OCR_Execute(
 	if tess_language == '':
 		tess_language = 'kor'
 
-
-	number_of_processes = multiprocessing.cpu_count()
-
-	_task_list = []
-	processes = []
-	for image in image_files:
-		str_filename = str(image)
-		_task_list.append(str_filename)
-
-	print('scan type: ', scan_type)
-
 	_output_dir = os.path.dirname(result_file)
 
 	if scan_type == 'Text only':
 
-		_all_image_dir = _output_dir + '\\all_images'
-		_unique_image_dir = _output_dir + '\\unique_images'
+		_all_image_dir = _output_dir + '\\all_text_images'
+		_unique_text_image_dir = _output_dir + '\\unique_text_images'
 		current_ratio = 0
 		process_ratio = 0.01
 		
 		initFolder(_all_image_dir)
-		initFolder(_unique_image_dir)
+		initFolder(_unique_text_image_dir)
 		
 		percent = ShowProgress(process_ratio, 100)
 		current_ratio+=process_ratio
@@ -1235,7 +1197,7 @@ def Function_Batch_OCR_Execute(
 
 		Status_Queue.put('Filter unique images('+ str(image_info['count']) + ')')
 		process_ratio =0.10
-		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_image_dir, _unique_image_dir, process_ratio, current_ratio)
+		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_image_dir, _unique_text_image_dir, process_ratio, current_ratio)
 		current_ratio+=process_ratio
 		
 		count = 0
@@ -1246,7 +1208,7 @@ def Function_Batch_OCR_Execute(
 		
 		process_ratio = (1-current_ratio - 0.01)
 		_output_dir = os.path.dirname(result_file)
-		result_file = _output_dir + '\\' + 'Gacha_Test_Result' + '.xlsx'
+		result_file = _output_dir + '/' + 'Gacha_Test_Result' + '.xlsx'
 		process_count = 0
 		total_process = len(_draft_result.keys())
 		Status_Queue.put('Scan text from unique images(' + str(total_process) + ')')
@@ -1259,7 +1221,7 @@ def Function_Batch_OCR_Execute(
 			new_db_list.append(word.replace(' ','').lower())
 		
 		for image in _draft_result:
-			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, _unique_image_dir + '\\' + image))
+			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, _unique_text_image_dir + '\\' + image))
 			_match_type = 'none'
 			if len(new_db_list)> 0:
 				_temp_text = key.replace(' ','').lower()
@@ -1320,23 +1282,23 @@ def Function_Batch_OCR_Execute(
 		current_ratio += process_ratio
 		
 		Status_Queue.put('Export test result')
-		
-		Function_Export_Gacha_Test_Result(result, _unique_text_image_dir,result_file, cell_width, row_height)
+		Function_Export_Auto_DB(result, _unique_text_image_dir,result_file, cell_width, row_height)
 		percent = ShowProgress(1, 1)
 		Process_Queue.put(percent)
 
 	elif scan_type == 'Image only':	
 		
-		_all_image_dir = _output_dir + '\\all_images'
-		_unique_image_dir = _output_dir + '\\unique_images'
-		current_ratio = 0
-		process_ratio = 0.01
-		
-		DB = Function_Import_DB()
+		_all_image_dir = _output_dir + '/all_images'
+		_unique_image_dir = _output_dir + '/unique_images'
+		result_file = _output_dir + '/' + 'Image_Compare_Test_Result' + '.xlsx'
+		DB = Function_Import_DB(db_path)
 
 		initFolder(_all_image_dir)
 		initFolder(_unique_image_dir)
-		
+
+		current_ratio = 0
+		process_ratio = 0.4
+		process_count = 0
 		percent = ShowProgress(process_ratio, 100)
 		current_ratio+=process_ratio
 		Process_Queue.put(percent)
@@ -1348,69 +1310,106 @@ def Function_Batch_OCR_Execute(
 
 
 		Status_Queue.put('Filter unique images('+ str(image_info['count']) + ')')
-		process_ratio =0.10
+		process_ratio =0.5
 		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_image_dir, _unique_image_dir, process_ratio, current_ratio)
 		current_ratio+=process_ratio
-	
-		result = {}
-		
-		process_ratio = (1-current_ratio - 0.01)
-		_output_dir = os.path.dirname(result_file)
-		result_file = _output_dir + '\\' + 'Inage_Analyze_Result' + '.xlsx'
-		process_count = 0
 		total_process = len(_draft_result.keys())
+		result = []
+		#print('_draft_result', _draft_result)
+		for unique_image in _draft_result:
+			temp_result = {}
+			temp_result['image'] = _unique_image_dir + '/' + unique_image
+			temp_result['count'] = _draft_result[unique_image]
+			for element in DB:
+				path = element['path']
+				if os.path.isfile(path):
+					temp_result = Function_Compare_2_Image(path, path)
+					if result == True:
+						_index = new_db_list.index(_temp_text)
+						_name = DB[_index][tess_language]
+						temp_result['name'] = _name
+					else:
+						temp_result['name'] = 'N/A'
+				else:
+					temp_result['name'] = 'N/A'
 
-		Status_Queue.put('Scan text from unique images(' + str(total_process) + ')')
+			result.append(temp_result)
+			process_count+=1	
+			percent = ShowProgress(process_count, total_process, process_ratio, current_ratio )
+			Process_Queue.put(percent)		
 		
-		for image in _draft_result:
-			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, _unique_image_dir + '\\' + image))
-			_match_type = 'none'
-			if len(new_db_list)> 0:
-				_temp_text = key.replace(' ','').lower()
-				if len(_temp_text) == 0:
-					continue
-				if _temp_text in new_db_list:
-					# exact match
-					_index = new_db_list.index(_temp_text)
-					key = new_db_list[_index]
-					_match_type = 'exact'
+		
+		
+		current_ratio += process_ratio
+		percent = ShowProgress(process_count, total_process, process_ratio, current_ratio )
+		Process_Queue.put(percent)		
+
+		row_height = scan_areas[0][7]
+		cell_width = scan_areas[0][2]* (1/6)
+		Function_Export_Image_Compare_Test_Result(result, _unique_image_dir,result_file, cell_width, row_height)
+		percent = ShowProgress(1, 1)
+		Process_Queue.put(percent)
+		
+	elif scan_type == 'Image and Text':	
+		Status_Queue.put('WIP')
+
+	elif scan_type == 'DB Create':	
+		
+		_db_dir = os.path.dirname(db_path)
+		_template_dir = _db_dir + '\\all_images'
+		_unique_image_dir = _db_dir + '\\template_storage'
+	
+		DB = Function_Import_DB(db_path)
+
+		initFolder(_template_dir)
+		initFolder(_unique_image_dir)
+
+		current_ratio = 0
+		process_ratio = 0.0
+		process_count = 0
+		percent = ShowProgress(process_ratio, 100)
+		current_ratio+=process_ratio
+
+
+		Process_Queue.put(percent)
+
+		Status_Queue.put('Crop image')
+		process_ratio = 0.04
+		image_info = Function_Crop_All_Component_And_Text(Process_Queue, image_files, scan_areas, ratio, _template_dir, process_ratio, current_ratio)
+		
+		current_ratio+=process_ratio
+		percent = ShowProgress(process_ratio, 100)
+		current_ratio+=process_ratio
+		Process_Queue.put(percent)
+
+		Status_Queue.put('Filter unique images('+ str(image_info['count']) + ')')
+		process_ratio =0.5
+
+		_draft_result = Function_Filter_Unique_DB(Process_Queue, image_info, _unique_image_dir, process_ratio, current_ratio)
+		print('_draft_result', _draft_result)
+		current_ratio+=process_ratio
+		total_process = len(_draft_result)
+		
+		for component_detail in _draft_result:
+			#print('component_detail', component_detail)
+			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, component_detail['text_raw'][0]))
+			key = key.replace(' ','')
+			component_detail['text'] = key
 			
-			error_count = 0
-			if len(key.replace(' ','')) == 0:
-				error_count+=1
-				key = '[Error_'+ str(error_count) + ']'
-
-			if key in result:
-				value = _draft_result[image]
-				result[key]['value'] = result[key]['value'] + value
-			else:
-				value = _draft_result[image]
-				result[key] = {}
-				result[key]['value'] = value
-				result[key]['image'] = image
-				result[key]['match_type'] = _match_type
-
 			process_count+=1	
 			percent = ShowProgress(process_count, total_process, process_ratio, current_ratio )
 			Process_Queue.put(percent)		
 		
 		current_ratio += process_ratio
-
-		row_height = scan_areas[0][3]
-		cell_width = scan_areas[0][2]* (5/30)
 		
+		Status_Queue.put('Export test result')
+
+		print('result', _draft_result)
+		Function_Export_Gacha_Test_Result(_draft_result, _unique_image_dir,result_file, cell_width, row_height)
+		percent = ShowProgress(1, 1)
+		Process_Queue.put(percent)
 		
-		return
-		Status_Queue.put('Done')
 
-	elif scan_type == 'Image and Text':	
-		Status_Queue.put('WIP')
-
-	elif scan_type == 'DB Create':	
-		Status_Queue.put('WIP')	
-
-	elif scan_type == 'DB Create':	
-		Status_Queue.put('WIP')	
 	else:
 		Status_Queue.put('Unsupport type')	
 
@@ -1461,9 +1460,25 @@ def Function_Compare_2_Image(source_image_path, target_image_path):
 	
 	result = cv2.matchTemplate(source_image, target_image, cv2.TM_CCOEFF_NORMED)
 	(_, maxVal, _, maxLoc) = cv2.minMaxLoc(result)
+	#print('maxVal', maxVal)
+	if maxVal > 0.7:
+		
+		return True
+	else:
+		return False
+
+def Function_Compare_2_Component(source_image_path, target_image_path):
+	source_image = cv2.imread(source_image_path)
+	source_image = cv2.cvtColor(source_image, cv2.COLOR_BGR2GRAY)
 	
-	if maxVal > 0.8:
-		#print('maxVal', maxVal)
+	target_image = cv2.imread(target_image_path)
+	target_image = cv2.cvtColor(target_image, cv2.COLOR_BGR2GRAY)	
+	
+	result = cv2.matchTemplate(source_image, target_image, cv2.TM_CCOEFF_NORMED)
+	(_, maxVal, _, maxLoc) = cv2.minMaxLoc(result)
+	#print('maxVal', maxVal)
+
+	if maxVal > 0.5:
 		return True
 	else:
 		return False
@@ -1498,6 +1513,62 @@ def Function_Crop_All_Text(Process_Queue, source_images, scan_areas, ratio, outp
 
 			image_info = {}
 			image_info['link'] = _name
+			image_info['area'] = _area_count
+
+			info[sourcename].append(image_info)
+			amount+=1
+
+		percent = ShowProgress(amount, total_task, process_ratio, start_percent)
+		Process_Queue.put(percent)		
+
+	info['count'] = amount
+
+	return info
+
+def Function_Crop_All_Component_And_Text(Process_Queue, source_images, scan_areas, ratio, output_dir, start_percent, process_ratio):
+	
+	total_task = len(scan_areas) * len(source_images)
+	amount = 0
+	_total_w_1 = 0
+	_total_h_1 = 0
+
+	_total_w_2 = 0
+	_total_h_2 = 0
+
+	for area in scan_areas:
+		_total_w_1 += area[2]
+		_total_h_1 += area[3]
+		_total_w_2 += area[6]
+		_total_h_2 += area[7]
+
+	_avg_w_1 = _total_w_1/(len(scan_areas))
+	_avg_h_1 = _total_h_1/(len(scan_areas))
+
+	_avg_w_2 = _total_w_2/(len(scan_areas))
+	_avg_h_2 = _total_h_2/(len(scan_areas))
+
+	info = {}
+
+	for image in source_images:
+		_area_count = 0
+		baseName = os.path.basename(image)
+		sourcename, ext = os.path.splitext(baseName)
+		_img = Load_Image_by_Ratio(image, ratio)
+		info[sourcename] = []
+		for area in scan_areas:
+			_area_count +=1
+			# Components:
+			imCrop = _img[int(area[5]):int(area[5]+_avg_h_2), int(area[4]):int(area[4]+_avg_w_2)]
+			_component_name = output_dir + '\\' + sourcename + '_component_' + str(_area_count) + ext
+			cv2.imwrite(_component_name, imCrop)
+			# Text:
+			imCrop = _img[int(area[1]):int(area[1]+_avg_h_1), int(area[0]):int(area[0]+_avg_w_1)]
+			_text_name = output_dir + '\\' + sourcename + '_text_' + str(_area_count) + ext
+			cv2.imwrite(_text_name, imCrop)
+
+			image_info = {}
+			image_info['component_path'] = _component_name
+			image_info['text_path'] = _text_name
 			image_info['area'] = _area_count
 
 			info[sourcename].append(image_info)
@@ -1552,6 +1623,54 @@ def Function_Crop_All_Image(Process_Queue, source_images, scan_areas, ratio, out
 
 	return info
 
+def Function_Filter_Unique_DB(Process_Queue, all_image_info, unique_images_dir, start_percent, process_ratio):
+
+	#all_image_info['area'] = _area_count	
+
+	all_component_images = []
+	all_text_images = []
+	for full_image in all_image_info:
+		if full_image != 'count':
+			for image in all_image_info[full_image]:
+				all_component_images.append(image['component_path'])
+				all_text_images.append(image['text_path'])
+	
+	unique = []
+	unique_data = []
+	element = {}
+	process = 0
+	all_process = len(all_component_images)
+
+	for component_image in all_component_images:
+		baseName = os.path.basename(component_image)
+		if len(unique_data) == 0:
+			element['component'] = baseName
+			_index = all_component_images.index(component_image)
+			element['text_raw'] = [all_text_images[_index]]
+			unique_data.append(element)
+			unique.append(component_image)
+			Export_Unique_Image(component_image, unique_images_dir)
+		else:
+			all_result = False
+			for target_image in unique:
+				result = Function_Compare_2_Image(component_image, target_image)
+				if result == True:
+					all_result = True
+					break
+			if all_result == False:
+				element['component'] = baseName
+				_index = all_component_images.index(component_image)
+				element['text_raw'] = [all_text_images[_index]]
+				unique_data.append(element)
+				unique.append(component_image)
+				Export_Unique_Image(component_image, unique_images_dir)
+
+		process+=1		
+		percent = ShowProgress(process, all_process, start_percent, process_ratio)
+		Process_Queue.put(percent)			
+	print('Tocal unique:', len(unique))
+	return unique_data
+
 def Function_Filter_Unique_Image(Process_Queue, all_image_dir, unique_images_dir, start_percent, process_ratio):
 
 	_temp_image_files = os.listdir(all_image_dir)
@@ -1590,12 +1709,17 @@ def Function_Filter_Unique_Image(Process_Queue, all_image_dir, unique_images_dir
 	return count
 	
 def Export_Unique_Image(path, new_folder):
-	unique_image = cv2.imread(path)
+	#unique_image = cv2.imread(path)
 	baseName = os.path.basename(path)
-	new_name = new_folder +'\\' + baseName
-	cv2.imwrite(new_name, unique_image)
+	new_path = new_folder +'\\' + baseName
+	copyfile(path, new_path)
+	#cv2.imwrite(new_name, unique_image)
 
 def Function_Import_DB(db_path):
+	if not os.path.isfile(db_path):
+		return []
+
+	_db_dir = os.path.dirname(db_path)
 
 	_all_db = []
 	col_name = ['eng', 'kor', 'path']
@@ -1605,10 +1729,15 @@ def Function_Import_DB(db_path):
 			_db_entry = {}
 			for key_name in component:
 				if key_name == 'path':
-					_db_entry['template'] = cv2.imread(component[key_name])
+					_temp_path = _db_dir + '\\' + component['path']
+					if not os.path.isfile(_temp_path):
+						_db_entry['path'] = _temp_path
+					else:
+						_db_entry['path'] = ''
 				else:
 					_db_entry[key_name] = component[key_name]
 			_all_db.append(_db_entry)
+	
 	return _all_db
 
 def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_width, row_height):
@@ -1623,8 +1752,8 @@ def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_w
 	summary = Workbook()
 	ws =  summary.active
 	ws.title = 'Summary'
-	Header = ['Component', 'Amount', 'Image']
-	Col = 2
+	Header = ['Index', 'Component', 'Amount', 'Image']
+	Col = 1
 	Row = 2
 	for Par in Header:
 		ws.cell(row=Row, column=Col).value = Par
@@ -1637,13 +1766,12 @@ def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_w
 	ws.cell(row=3, column=7).value = "Component name corrected by using DB"
 	ws.cell(row=4, column=6).fill = none_fill
 	ws.cell(row=4, column=7).value = "Component name not found in DB"
-		
-	column_letters = ['B', 'C', 'D']
-
-	for column_letter in column_letters:
-		ws.column_dimensions[column_letter].bestFit = True
 	
+	_index = 0
 	for component in result_obj:
+		_index+=1
+		ws.cell(row=Row, column=1).value = _index
+
 		ws.cell(row=Row, column=2).value = component
 		_match_type = result_obj[component]['match_type']
 		if _match_type == 'exact':
@@ -1670,15 +1798,81 @@ def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_w
 
 
 
-	Tab = Table(displayName="Summary", ref="B2:" + "D" + str(Row-1))
+	Tab = Table(displayName="Summary", ref="A2:" + "D" + str(Row-1))
 	style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False, showLastColumn=False, showRowStripes=True, showColumnStripes=True)
 	Tab.tableStyleInfo = style
 	ws.add_table(Tab)
 	now = datetime.now()
 	timestamp = str(int(datetime.timestamp(now)))	
 
+	column_letters = ['A', 'B', 'C', 'D']
+	for column_letter in column_letters:
+		ws.column_dimensions[column_letter].bestFit = True
+
 	summary.save(result_path)	
 	summary.close()
+
+
+def Function_Export_Image_Compare_Test_Result(result_obj, image_dir, result_path, cell_width, row_height):
+
+	summary = Workbook()
+	ws =  summary.active
+	ws.title = 'Summary'
+	Header = ['Index', 'Image', 'Amount', 'Name (From DB)']
+	Col = 1
+	Row = 2
+	for Par in Header:
+		ws.cell(row=Row, column=Col).value = Par
+		Col +=1
+	Row +=1
+
+	
+	
+	_index = 0
+
+	for component in result_obj:
+		_index+=1
+		ws.cell(row=Row, column=1).value = _index
+
+		cell_image = Image(component['image'])
+		cell_image.anchor = 'B' + str(Row)
+		ws.add_image(cell_image)
+
+		count = component['count']
+		ws.cell(row=Row, column=3).value = count
+	
+		if row_height:
+			ws.row_dimensions[Row].height = row_height
+		if cell_width:
+			ws.column_dimensions['B'].width = cell_width
+	
+		ws.cell(row=Row, column=4).value = component['name']
+	
+		Row +=1
+
+	Tab = Table(displayName="Summary", ref="A2:" + "D" + str(Row-1))
+	style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False, showLastColumn=False, showRowStripes=True, showColumnStripes=True)
+	Tab.tableStyleInfo = style
+	ws.add_table(Tab)
+	now = datetime.now()
+	timestamp = str(int(datetime.timestamp(now)))	
+
+	column_letters = ['A', 'B', 'C', 'D']
+	for column_letter in column_letters:
+		ws.column_dimensions[column_letter].bestFit = True
+
+
+	summary.save(result_path)	
+	summary.close()
+
+def Function_Export_Auto_DB(result_obj, image_dir, result_path):
+	print('result_obj', result_obj)
+	with open(result_path, 'a', newline='', encoding='utf-8-sig') as csvfile:
+		fieldnames = ['kor', 'eng', 'path']
+		writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+		writer.writeheader()
+		for component in result_obj:
+			writer.writerow({'Components': component, 'Amount': _gacha[component]})
 
 
 def Function_Analyze_Gacha_Data(_raw_data, col_name):
