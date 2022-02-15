@@ -72,7 +72,7 @@ DELAY1 = 20
 
 ToolDisplayName = "OCR Project"
 tool_name = 'ocr'
-rev = 1004
+rev = 1100
 a,b,c,d = list(str(rev))
 VerNum = a + '.' + b + '.' + c + chr(int(d)+97)
 
@@ -1077,7 +1077,7 @@ class OCR_Project(Frame):
 				try:
 					Status = self.Status_Queue.get(0)
 					if Status != None:	
-						self.Write_Debug('Bad word check is completed')
+						self.Write_Debug(Status)
 						#print(Status)
 				except queue.Empty:
 					break
@@ -1198,7 +1198,7 @@ def Function_Batch_OCR_Execute(
 		current_ratio+=process_ratio
 
 
-		Status_Queue.put('Filter unique images('+ str(image_info['count']) + ')')
+		Status_Queue.put('Filter unique images ('+ str(image_info['count']) + ')')
 		process_ratio =0.10
 		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_image_dir, _unique_text_image_dir, process_ratio, current_ratio)
 		current_ratio+=process_ratio
@@ -1211,28 +1211,28 @@ def Function_Batch_OCR_Execute(
 		
 		process_ratio = (1-current_ratio - 0.01)
 		_output_dir = os.path.dirname(result_file)
-		result_file = _output_dir + '/' + 'Gacha_Test_Result' + '.xlsx'
+		result_file = _output_dir + '/' + 'Text_Scan_Test_Result' + '.xlsx'
 		process_count = 0
 		total_process = len(_draft_result.keys())
-		Status_Queue.put('Scan text from unique images(' + str(total_process) + ')')
+		Status_Queue.put('Scan text from unique images (' + str(total_process) + ')')
 		
 		DB  = Function_Import_DB(db_path)
-		new_db_list = []
+		word_db_list = []
 		
 		for element in DB:
 			word = element[tess_language]
-			new_db_list.append(word.replace(' ','').lower())
+			word_db_list.append(word.replace(' ','').lower())
 		
 		for image in _draft_result:
 			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, _unique_text_image_dir + '\\' + image))
 			_match_type = 'none'
-			if len(new_db_list)> 0:
+			if len(word_db_list)> 0:
 				_temp_text = key.replace(' ','').lower()
 				if len(_temp_text) == 0:
 					continue
-				if _temp_text in new_db_list:
+				if _temp_text in word_db_list:
 					# exact match
-					_index = new_db_list.index(_temp_text)
+					_index = word_db_list.index(_temp_text)
 					_match_type = 'exact'
 			
 				else:
@@ -1241,7 +1241,7 @@ def Function_Batch_OCR_Execute(
 					_ratio = 0
 					_word = ''
 					
-					for word in new_db_list:
+					for word in word_db_list:
 						Distance = lev_distance.distance(_temp_text, word)		
 						Ratio = lev_ratio.normalized_similarity(_temp_text, word)
 						if Distance <= _dist and Ratio >= _ratio:
@@ -1250,14 +1250,14 @@ def Function_Batch_OCR_Execute(
 							_word = word
 
 					if _dist/len(_temp_text) <= 0.2 and _ratio >= 0.8:
-						_index = new_db_list.index(_word)
-						_key = new_db_list[_index]
+						_index = word_db_list.index(_word)
+						_key = word_db_list[_index]
 						Status_Queue.put('Text has been corrected from: ' + key + ' to ' + _key)
 						key = _key
 						_match_type = 'corrected'
 					elif _dist/len(_temp_text) < 0.34 and _ratio > 0.66 and len(_temp_text) == len(_word):
-						_index = new_db_list.index(_word)
-						_key = new_db_list[_index]
+						_index = word_db_list.index(_word)
+						_key = word_db_list[_index]
 						Status_Queue.put('Text has been corrected from: ' + key + ' to ' + _key)
 						key = _key
 						_match_type = 'corrected'	
@@ -1285,6 +1285,8 @@ def Function_Batch_OCR_Execute(
 		current_ratio += process_ratio
 		
 		Status_Queue.put('Export test result')
+		row_height = scan_areas[0][7]
+		cell_width = scan_areas[0][2]* (1/6)
 		Function_Export_Gacha_Test_Result(result, _unique_text_image_dir,result_file, cell_width, row_height)
 		percent = ShowProgress(1, 1)
 		Process_Queue.put(percent)
@@ -1296,6 +1298,8 @@ def Function_Batch_OCR_Execute(
 		result_file = _output_dir + '/' + 'Image_Compare_Test_Result' + '.xlsx'
 		DB = Function_Import_DB(db_path)
 
+		_db_dir = os.path.dirname(db_path)
+		
 		initFolder(_all_image_dir)
 		initFolder(_unique_image_dir)
 
@@ -1312,7 +1316,7 @@ def Function_Batch_OCR_Execute(
 		current_ratio+=process_ratio
 
 
-		Status_Queue.put('Filter unique images('+ str(image_info['count']) + ')')
+		Status_Queue.put('Filter unique images ('+ str(image_info['count']) + ')')
 		process_ratio =0.5
 		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_image_dir, _unique_image_dir, process_ratio, current_ratio)
 		current_ratio+=process_ratio
@@ -1321,16 +1325,17 @@ def Function_Batch_OCR_Execute(
 		#print('_draft_result', _draft_result)
 		for unique_image in _draft_result:
 			temp_result = {}
-			temp_result['image'] = _unique_image_dir + '/' + unique_image
+			_temp_template = _unique_image_dir + '/' + unique_image
+			temp_result['image'] = _temp_template
 			temp_result['count'] = _draft_result[unique_image]
-			for element in DB:
-				path = element['path']
-				if os.path.isfile(path):
-					temp_result = Function_Compare_2_Image(path, path)
-					if result == True:
-						_index = new_db_list.index(_temp_text)
-						_name = DB[_index][tess_language]
+			for row in DB:
+				_template = _db_dir + '\\' + row['path']
+				if os.path.isfile(_template):
+					_image_compare_result = Function_Compare_2_Image(_temp_template, _template)
+					if _image_compare_result == True:
+						_name = row[tess_language]
 						temp_result['name'] = _name
+						break
 					else:
 						temp_result['name'] = 'N/A'
 				else:
@@ -1340,8 +1345,6 @@ def Function_Batch_OCR_Execute(
 			process_count+=1	
 			percent = ShowProgress(process_count, total_process, process_ratio, current_ratio )
 			Process_Queue.put(percent)		
-		
-		
 		
 		current_ratio += process_ratio
 		percent = ShowProgress(process_count, total_process, process_ratio, current_ratio )
@@ -1354,7 +1357,155 @@ def Function_Batch_OCR_Execute(
 		Process_Queue.put(percent)
 		
 	elif scan_type == 'Image and Text':	
-		Status_Queue.put('WIP')
+		_all_image_dir = _output_dir + '/all_images'
+		_unique_image_dir = _output_dir + '/unique_images'
+		result_file = _output_dir + '/' + 'Full_Gacha_Test_Result' + '.xlsx'
+		
+		initFolder(_all_image_dir)
+		initFolder(_unique_image_dir)
+
+		_db_dir = os.path.dirname(db_path)
+
+		DB = Function_Import_DB(db_path)
+		word_db_list = []
+		for element in DB:
+			word = element[tess_language]
+			word_db_list.append(word.replace(' ','').lower())
+		
+		current_ratio = 0
+		process_ratio = 0.0
+		process_count = 0
+		percent = ShowProgress(process_ratio, 100)
+		current_ratio+=process_ratio
+		Process_Queue.put(percent)
+
+		Status_Queue.put('Crop image')
+		process_ratio = 0.1
+		image_info = Function_Crop_All_Component_And_Text(Process_Queue, image_files, scan_areas, ratio, _all_image_dir, process_ratio, current_ratio)
+		current_ratio+=process_ratio
+
+		Status_Queue.put('Filter unique images ('+ str(image_info['count']) + ')')
+		#Define weith of the current step
+		process_ratio =0.3
+		_draft_result = Function_Filter_Unique_DB(Process_Queue, image_info, _unique_image_dir, process_ratio, current_ratio)
+		print('_draft_result', _draft_result)
+
+		current_ratio+=process_ratio
+		total_process = len(_draft_result)
+		percent = ShowProgress(current_ratio, 100)
+		Process_Queue.put(percent)		
+		result = []
+		# Search for Image in DB:
+		Status_Queue.put('Scan component images with DB')
+		print('Step 1: ', len(_draft_result), len(result))
+		#Define weith of the current step
+		process_ratio =0.3
+		
+
+		for unique_image in _draft_result[:]:
+			_match_type = 'none'
+			temp_result = {}
+			_temp_template = _output_dir + '/' + unique_image['component']
+			for row in DB:
+				_template = _db_dir + '\\' + row['path']
+				if os.path.isfile(_template):
+					_image_compare_result = Function_Compare_2_Image(_temp_template, _template)
+					if _image_compare_result == True:
+						_name = row[tess_language]
+						temp_result['image'] = _temp_template
+						temp_result['count'] = unique_image['count']
+						temp_result['text_raw'] = unique_image['text_raw'][0]
+						temp_result['name'] = _name
+						temp_result['match_type'] = 'Image compare: Image exact math'
+						_draft_result.remove(unique_image)
+						result.append(temp_result)
+						#break
+		
+			process_count+=1	
+			percent = ShowProgress(process_count, total_process, process_ratio, current_ratio )
+			Process_Queue.put(percent)
+
+		#Update progress bar
+		current_ratio += process_ratio
+		percent = ShowProgress(process_count, total_process, process_ratio, current_ratio )
+		Process_Queue.put(percent)		
+
+		print('Step 2: ', len(_draft_result), len(result))
+
+		#Define weith of the current step
+		Status_Queue.put('Scan component text by OCR')
+		process_ratio = 0.3
+		
+		error_count = 0
+		for unique_image in _draft_result[:]:
+
+			_temp_template = _output_dir + '/' +  unique_image['component']
+			key = str(Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir_config, _temp_template))
+			
+			if len(word_db_list)> 0:
+				_temp_text = key.replace(' ','').lower()
+				if len(_temp_text) == 0:
+					_match_type = 'None'
+				elif _temp_text in word_db_list:
+					# exact match
+					_match_type = 'OCR: Text exact'
+					print('_key', key)
+				else:
+					# similarity check
+					_dist = len(_temp_text)
+					_ratio = 0
+					_word = ''
+					
+					for word in word_db_list:
+						Distance = lev_distance.distance(_temp_text, word)		
+						Ratio = lev_ratio.normalized_similarity(_temp_text, word)
+						if Distance <= _dist and Ratio >= _ratio:
+							_dist = Distance
+							_ratio = Ratio
+							_word = word
+
+					if _dist/len(_temp_text) <= 0.2 and _ratio >= 0.8:
+						_index = word_db_list.index(_word)
+						_key = word_db_list[_index]
+						Status_Queue.put('Text has been corrected from: ' + key + ' to ' + _key)
+						key = _key
+						_match_type = 'OCR: Text corrected with DB'
+					elif _dist/len(_temp_text) < 0.34 and _ratio > 0.66 and len(_temp_text) == len(_word):
+						_index = word_db_list.index(_word)
+						_key = word_db_list[_index]
+						Status_Queue.put('Text has been corrected from: ' + key + ' to ' + _key)
+						key = _key
+						_match_type = 'OCR: Text corrected with DB'
+					else:
+						_match_type = 'None'
+					
+			
+			if len(key.replace(' ','')) == 0:
+				error_count+=1
+				key = '[Error_'+ str(error_count) + ']'
+	
+			temp_result = {}
+			temp_result['image'] = _temp_template
+			temp_result['count'] = unique_image['count']
+			temp_result['text_raw'] = unique_image['text_raw'][0]
+			temp_result['name'] = key
+			temp_result['match_type'] = _match_type
+	
+			result.append(temp_result)
+			_draft_result.remove(unique_image)
+			process_count+=1	
+			percent = ShowProgress(process_count, total_process, process_ratio, current_ratio )
+			Process_Queue.put(percent)
+
+		print('Step 3: ', len(_draft_result), len(result))
+
+		Status_Queue.put('Export test result')
+		row_height = scan_areas[0][7]
+		cell_width = scan_areas[0][2]* (1/6)
+
+		Function_Export_Gacha_Full_Test_Result(result, _unique_image_dir,result_file, cell_width, row_height)
+		percent = ShowProgress(1, 1)
+		Process_Queue.put(percent)
 
 	elif scan_type == 'DB Create':	
 		
@@ -1385,7 +1536,7 @@ def Function_Batch_OCR_Execute(
 		current_ratio+=process_ratio
 		Process_Queue.put(percent)
 
-		Status_Queue.put('Filter unique images('+ str(image_info['count']) + ')')
+		Status_Queue.put('Filter unique images ('+ str(image_info['count']) + ')')
 		process_ratio =0.5
 
 		_draft_result = Function_Filter_Unique_DB(Process_Queue, image_info, _unique_image_dir, process_ratio, current_ratio)
@@ -1407,8 +1558,8 @@ def Function_Batch_OCR_Execute(
 		current_ratio += process_ratio
 		
 		Status_Queue.put('Export test result')
-		Function_Export_Auto_DB(_draft_result, tess_language, db_path)
-		Status_Queue.put('Append ' + str(len(_draft_result)) + ' to DB.')
+		Function_Export_Auto_DB(Status_Queue, _draft_result, tess_language, db_path)
+		Status_Queue.put('Append ' + str(len(_draft_result)) + ' row(s) to DB.')
 		percent = ShowProgress(1, 1)
 		Process_Queue.put(percent)
 		
@@ -1455,6 +1606,13 @@ def Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir
 	return ocr
 
 def Function_Compare_2_Image(source_image_path, target_image_path):
+	if not os.path.isfile(source_image_path):
+		print('File not existed: ', source_image_path)
+		return False
+	if not os.path.isfile(target_image_path):
+		print('File not existed: ', target_image_path)
+		return False
+		
 	source_image = cv2.imread(source_image_path)
 	source_image = cv2.cvtColor(source_image, cv2.COLOR_BGR2GRAY)	
 
@@ -1652,6 +1810,7 @@ def Function_Filter_Unique_DB(Process_Queue, all_image_info, unique_images_dir, 
 			element['component'] = unique_images_folder + '\\' + baseName
 			_index = all_component_images.index(component_image)
 			element['text_raw'] = [all_text_images[_index]]
+			element['count'] = 1
 			unique_data.append(element)
 			unique.append(component_image)
 			Export_Unique_Image(component_image, unique_images_dir)
@@ -1662,17 +1821,21 @@ def Function_Filter_Unique_DB(Process_Queue, all_image_info, unique_images_dir, 
 				result = Function_Compare_2_Image(component_image, target_image)
 				if result == True:
 					all_result = True
+					for element in unique_data:
+						if os.path.basename(element['component']) == os.path.basename(target_image):
+							element['count'] +=1
 					break
 			if all_result == False:
 				element['component'] = unique_images_folder + '\\' + baseName
 				_index = all_component_images.index(component_image)
 	
 				element['text_raw'] = [all_text_images[_index]]
+				element['count'] = 1
 				unique_data.append(element)
 				unique.append(component_image)
 				Export_Unique_Image(component_image, unique_images_dir)
 				Export_Unique_Image(all_text_images[_index], unique_images_dir)
-	
+				
 		process+=1		
 		percent = ShowProgress(process, all_process, start_percent, process_ratio)
 		Process_Queue.put(percent)			
@@ -1726,9 +1889,7 @@ def Export_Unique_Image(path, new_folder):
 def Function_Import_DB(db_path):
 	if not os.path.isfile(db_path):
 		return []
-
 	_db_dir = os.path.dirname(db_path)
-
 	_all_db = []
 	col_name = ['eng', 'kor', 'path']
 	with open(db_path, newline='', encoding='utf-8-sig') as csvfile:
@@ -1738,8 +1899,8 @@ def Function_Import_DB(db_path):
 			for key_name in component:
 				if key_name == 'path':
 					_temp_path = _db_dir + '\\' + component['path']
-					if not os.path.isfile(_temp_path):
-						_db_entry['path'] = _temp_path
+					if os.path.isfile(_temp_path):
+						_db_entry['path'] = component['path']
 					else:
 						_db_entry['path'] = ''
 				else:
@@ -1782,12 +1943,13 @@ def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_w
 
 		ws.cell(row=Row, column=2).value = component
 		_match_type = result_obj[component]['match_type']
-		if _match_type == 'exact':
-			ws.cell(row=Row, column=2).fill = all_match_fill
-		elif _match_type == 'corrected':
-			ws.cell(row=Row, column=2).fill = corrected_fill
-		else:
-			ws.cell(row=Row, column=2).fill = none_fill
+		for col in range (1, 4):
+			if _match_type == 'exact':
+				ws.cell(row=Row, column=2).fill = all_match_fill
+			elif _match_type == 'corrected':
+				ws.cell(row=Row, column=2).fill = corrected_fill
+			else:
+				ws.cell(row=Row, column=2).fill = none_fill
 
 		count = result_obj[component]['value']
 		ws.cell(row=Row, column=3).value = count
@@ -1801,10 +1963,7 @@ def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_w
 		if cell_width:
 			ws.column_dimensions['D'].width = cell_width
 	
-		
 		Row +=1
-
-
 
 	Tab = Table(displayName="Summary", ref="A2:" + "D" + str(Row-1))
 	style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False, showLastColumn=False, showRowStripes=True, showColumnStripes=True)
@@ -1820,13 +1979,91 @@ def Function_Export_Gacha_Test_Result(result_obj, image_dir, result_path, cell_w
 	summary.save(result_path)	
 	summary.close()
 
+def Function_Export_Gacha_Full_Test_Result(result_obj, image_dir, result_path, cell_width, row_height):
+
+	all_match_color = Color(rgb='ADF7B6')
+	all_match_fill = PatternFill(patternType='solid', fgColor=all_match_color)
+	corrected_color = Color(rgb='A0CED9')
+	corrected_fill = PatternFill(patternType='solid', fgColor=corrected_color)
+	none_color = Color(rgb='FFEE93')
+	none_fill = PatternFill(patternType='solid', fgColor=none_color)
+
+	summary = Workbook()
+	ws =  summary.active
+	ws.title = 'Summary'
+	Header = ['Index', 'Image', 'Amount', 'Name (From DB)', 'Raw text', 'Match Type']
+	Col = 1
+	Row = 2
+	for Par in Header:
+		ws.cell(row=Row, column=Col).value = Par
+		Col +=1
+	Row +=1
+
+	ws.cell(row=2, column=8).fill = all_match_fill
+	ws.cell(row=2, column=9).value = "Component name or image found in DB"
+	ws.cell(row=3, column=8).fill = corrected_fill
+	ws.cell(row=3, column=9).value = "Component name corrected by using DB"
+	ws.cell(row=4, column=8).fill = none_fill
+	ws.cell(row=4, column=9).value = "Component name not found in DB"
+	
+
+	_index = 0
+
+	for component in result_obj:
+		_index+=1
+		ws.cell(row=Row, column=1).value = _index
+
+		cell_image = Image(component['image'])
+		cell_image.anchor = 'B' + str(Row)
+		ws.add_image(cell_image)
+
+		count = component['count']
+		ws.cell(row=Row, column=3).value = count
+	
+		if row_height:
+			ws.row_dimensions[Row].height = row_height
+		if cell_width:
+			ws.column_dimensions['B'].width = cell_width
+			ws.column_dimensions['E'].width = cell_width
+		ws.column_dimensions['F'].width = 32
+		ws.cell(row=Row, column=4).value = component['name']
+
+		cell_image = Image(component['text_raw'])
+		cell_image.anchor = 'E' + str(Row)
+		ws.add_image(cell_image)
+
+		_match_type = component['match_type']
+		ws.cell(row=Row, column=6).value = _match_type
+		for col in range (1, 7):
+			if _match_type in ['Image compare: Image exact math', 'OCR: Text exact']:
+				ws.cell(row=Row, column=col).fill = all_match_fill
+			elif _match_type == 'OCR: Text corrected with DB':
+				ws.cell(row=Row, column=col).fill = corrected_fill
+			else:
+				ws.cell(row=Row, column=col).fill = none_fill
+		Row +=1
+
+	Tab = Table(displayName="Summary", ref="A2:" + "F" + str(Row-1))
+	style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False, showLastColumn=False, showRowStripes=True, showColumnStripes=True)
+	Tab.tableStyleInfo = style
+	ws.add_table(Tab)
+	now = datetime.now()
+	timestamp = str(int(datetime.timestamp(now)))	
+
+	column_letters = ['A', 'B', 'C', 'D', 'E', 'F']
+	for column_letter in column_letters:
+		ws.column_dimensions[column_letter].bestFit = True
+
+
+	summary.save(result_path)	
+	summary.close()
 
 def Function_Export_Image_Compare_Test_Result(result_obj, image_dir, result_path, cell_width, row_height):
 
 	summary = Workbook()
 	ws =  summary.active
 	ws.title = 'Summary'
-	Header = ['Index', 'Image', 'Amount', 'Name (From DB)']
+	Header = ['Index', 'Image', 'Amount', 'Name (From DB)', 'Match Type']
 	Col = 1
 	Row = 2
 	for Par in Header:
@@ -1855,6 +2092,8 @@ def Function_Export_Image_Compare_Test_Result(result_obj, image_dir, result_path
 			ws.column_dimensions['B'].width = cell_width
 	
 		ws.cell(row=Row, column=4).value = component['name']
+
+		#ws.cell(row=Row, column=6).value = component['match_type']
 	
 		Row +=1
 
@@ -1873,16 +2112,51 @@ def Function_Export_Image_Compare_Test_Result(result_obj, image_dir, result_path
 	summary.save(result_path)	
 	summary.close()
 
-def Function_Export_Auto_DB(result_obj, tess_language, result_path):
-	print('result_obj', result_obj)
+def Function_Export_Auto_DB(status_queue, result_obj, tess_language, result_path):
 	_exist = os.path.isfile(result_path)
+	current_db = Function_Import_DB(result_path)
+	_db_dir = os.path.dirname(result_path)
+	print('_db_dir', _db_dir)
 	with open(result_path, 'a', newline='', encoding='utf-8-sig') as csvfile:
 		fieldnames = ['kor', 'eng', 'path']
 		writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 		if not _exist:
 			writer.writeheader()
+
+		temp_db = []	
 		for component_details in result_obj:
-			writer.writerow({'path': component_details['component'], tess_language: component_details['text']})
+			result = False
+
+			for row in current_db:
+				_template = _db_dir + '\\' + row['path']
+				_new_template = _db_dir + '\\' + component_details['component']
+				result = Function_Compare_2_Image(_new_template, _template)
+				if result == True:
+					#if row[tess_language] == "" and component_details['text'] != '':
+					#	print('Updating text to existed DB row.')
+					#	status_queue.put('Updating text to existed DB row')
+					#	row[tess_language] =component_details['text']
+					break
+				else:
+					result = False
+			if result == False:
+				for row in temp_db:
+					_template = _db_dir + '\\' + row['path']
+					_new_template = _db_dir + '\\' + component_details['component']
+					result = Function_Compare_2_Image(_new_template, _template)
+					if result == True:
+						break
+					else:
+						result = False
+		
+			if result == False:
+				print('Append new row to existed DB.')
+				_new_row = {'path': component_details['component'], tess_language: component_details['text']}
+				writer.writerow(_new_row)
+				temp_db.append(_new_row)
+			else:
+				print('Entry existed in existed DB.')
+				status_queue.put('Entry existed in existed DB.')
 
 
 def Function_Analyze_Gacha_Data(_raw_data, col_name):
