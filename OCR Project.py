@@ -1,22 +1,21 @@
 #System variable and io handling
-from genericpath import isfile
 import os
 import csv
-from posixpath import basename
+
 from shutil import copyfile, rmtree
 from re import match
 import sys
 import random
 
 
-import configparser
+#import configparser
 #Regular expression handlings
 import multiprocessing
 from multiprocessing import Process , Queue, Manager
 import queue 
 import subprocess
 #Get timestamp
-import time
+
 from datetime import datetime
 from tkinter.constants import COMMAND
 #function difination
@@ -25,10 +24,10 @@ from urllib.parse import urlparse
 
 #GUI
 from tkinter.ttk import Entry, Label, Treeview, Scrollbar, OptionMenu
-from tkinter.ttk import Checkbutton, Button, Notebook, Radiobutton
+from tkinter.ttk import Button, Notebook, Radiobutton
 from tkinter.ttk import Progressbar, Style
 
-from tkinter import Tk, Frame, Variable
+from tkinter import Tk, Frame
 from tkinter import Menu, filedialog, messagebox
 from tkinter import Text, colorchooser
 from tkinter import IntVar, StringVar
@@ -37,7 +36,6 @@ from tkinter import WORD, NORMAL, BOTTOM, X, TOP, BOTH, Y
 from tkinter import DISABLED
 
 from tkinter import scrolledtext 
-from tkinter import simpledialog
 
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Font
@@ -59,7 +57,6 @@ from libs.version import get_version
 from libs.tkinter_extension import AutocompleteCombobox
 
 import cv2
-import numpy as np
 import pytesseract
 
 #import Levenshtein as lev
@@ -88,7 +85,7 @@ class OCR_Project(Frame):
 		Frame.__init__(self, Root) 
 		#super().__init__()
 		self.parent = Root 
-
+		self.parent.protocol("WM_DELETE_WINDOW", self.on_closing)
 		# Queue
 		self.Process_Queue = Queue['Process_Queue']
 		self.Result_Queue = Queue['Result_Queue']
@@ -152,6 +149,10 @@ class OCR_Project(Frame):
 		
 		self.init_UI_Data()
 
+	def on_closing(self):
+		if messagebox.askokcancel("Quit", "Do you want to quit?"):
+			self.parent.destroy()
+			self.OCR_Scan_Process.terminate()
 
 	# UI init
 	def init_UI(self):
@@ -159,6 +160,8 @@ class OCR_Project(Frame):
 		self.Generate_OCR_Tool_UI(self.OCR_TOOL)
 
 		self.Generate_OCR_Setting_UI(self.OCR_SETTING)
+
+
 
 	def Generate_Menu_UI(self):
 		menubar = Menu(self.parent) 
@@ -896,78 +899,6 @@ class OCR_Project(Frame):
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])	
 
-	def Btn_OCR_Preview_Scan(self):
-		'''
-		Execute main function
-		'''
-		self.preview_index = random.randint(0, len(self.OCR_File_Path)-1)
-		if os.path.isfile(self.OCR_File_Path[self.preview_index]):
-			img_file = self.OCR_File_Path[self.preview_index]
-			_working_res = self.Resolution.get()
-			if _working_res == 1:
-				_ratio = 720
-			else:
-				_ratio = 1080
-			
-			self._scan_areas = []
-			for row in self.Treeview.get_children():
-				child = self.Treeview.item(row)
-				self._scan_areas.append(child['values'])
-
-			_tess_data = self.TesseractDataPath.get()
-			_tess_path = self.TesseractPath.get()
-			
-			_tess_language = self.WorkingLanguage.get()
-
-			self.BadWord_Check_Process = Process(target=Function_Preview_Scan, args=(self.Result_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, img_file, _ratio, self._scan_areas, ))
-			
-			self.BadWord_Check_Process.start()
-			self.after(DELAY1, self.Wait_For_Preview_Process)	
-
-	def Wait_For_Preview_Process(self):
-		if (self.BadWord_Check_Process.is_alive()):
-			
-			try:
-				percent = self.Process_Queue.get(0)
-				self.progressbar["value"] = percent
-				self.progressbar.update()
-				#self.Progress.set("Progress: " + str(percent/10) + '%')
-			except queue.Empty:
-				pass	
-			self.after(DELAY1, self.Wait_For_Preview_Process)
-		else:
-			try:
-				percent = self.Process_Queue.get(0)
-				self.progressbar["value"] = percent
-				self.progressbar.update()
-				#self.Progress.set("Progress: " + str(percent/10) + '%')
-			except queue.Empty:
-				pass
-			try:
-				Result = self.Result_Queue.get(0)
-				if Result != None:	
-					index = 0
-					img = self.Function_Load_Img(self.OCR_File_Path[self.preview_index])
-					
-					font = cv2.FONT_HERSHEY_SIMPLEX
-					fontScale= 1
-					fontColor= (255,255,255)
-					lineType= 2
-
-					for area in self._scan_areas:
-						_area = (area[0],area[0]+area[2])
-						_text = Result[index]
-						print(_text)
-						img = cv2.rectangle(img, (area[0], area[1]), (area[0] + area[2], area[1] + area[3]), (255,0,0), 2)
-
-						img = cv2.putText(img,_text,_area,font,fontScale,fontColor,lineType)
-						index+=1
-				cv2.imshow("Image", img)
-				cv2.waitKey(0)
-			except queue.Empty:
-				pass
-			self.BadWord_Check_Process.terminate()
-
 	def Btn_OCR_Update_Working_Language(self):
 		_data_ = str(self.TesseractDataPath.get())
 		_exe_ = str(self.TesseractPath.get())
@@ -987,10 +918,7 @@ class OCR_Project(Frame):
 		self.option_working_language.set_completion_list(self.language_list)
 
 	
-
-
 	def Open_OCR_Result_Folder(self):
-
 		try:
 			path = self.Function_Correct_Path(self.Output_Result_Folder)
 			_cmd = 'explorer ' + "\"" + str(path) + "\""
