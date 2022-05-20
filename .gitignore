@@ -5793,3 +5793,4 @@ venv/Scripts/deactivate.bat
 venv/Scripts/django-admin.py
 venv/Scripts/pytesseract-script.py
 venv/Scripts/requirements.txt
+*.png

@@ -69,7 +69,7 @@ DELAY1 = 20
 
 ToolDisplayName = "OCR Project"
 tool_name = 'ocr'
-rev = 1100
+rev = 1104
 a,b,c,d = list(str(rev))
 VerNum = a + '.' + b + '.' + c + chr(int(d)+97)
 
@@ -152,7 +152,10 @@ class OCR_Project(Frame):
 	def on_closing(self):
 		if messagebox.askokcancel("Quit", "Do you want to quit?"):
 			self.parent.destroy()
-			self.OCR_Scan_Process.terminate()
+			try:
+				self.OCR_Scan_Process.terminate()
+			except:
+				pass	
 
 	# UI init
 	def init_UI(self):
@@ -317,7 +320,7 @@ class OCR_Project(Frame):
 		Label(Tab, text= self.LanguagePack.Label['ScanType']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
 		_scan_type = ['', 'Text only', 'Image only', 'Image and Text', 'DB Create']
 		Option_ScanType = OptionMenu(Tab, self.ScanType, *_scan_type, command = self.OCR_Setting_Set_Scan_Type)
-		Option_ScanType.config(width=10)
+		Option_ScanType.config(width=20)
 		Option_ScanType.grid(row=Row, column=2,padx=0, pady=5, sticky=W)
 
 		Label(Tab, text= self.LanguagePack.Label['WorkingLang']).grid(row=Row, column=3, padx=5, pady=5, sticky=W)
@@ -709,12 +712,14 @@ class OCR_Project(Frame):
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
 		
+	# Obsoleted
 	def Btn_OCR_Select_Area(self):
 		
 		if self.OCR_File_Path != None:
 			_index = random.randint(0, len(self.OCR_File_Path)-1)
 			if os.path.isfile(self.OCR_File_Path[_index]):
 				im = cv2.imread(self.OCR_File_Path[_index])
+				
 				(_h, _w) = im.shape[:2]
 				ratio = 720 / _h
 				if ratio != 1:
@@ -734,7 +739,40 @@ class OCR_Project(Frame):
 				self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])		
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])	
-		
+
+	def Btn_OCR_Preview_Areas(self):
+
+		_scan_type = self.ScanType.get()
+
+		if self.OCR_File_Path != None:
+			_index = random.randint(0, len(self.OCR_File_Path)-1)
+			if os.path.isfile(self.OCR_File_Path[_index]):
+				#im = self.Function_Load_Img(self.OCR_File_Path[_index])
+				im = cv2.imread(self.OCR_File_Path[_index])
+				im, ratio = self.Resize_Image_by_ratio(im)
+
+				for row in self.Treeview.get_children():
+					child = self.Treeview.item(row)
+					areas = child["values"]
+
+					for area in areas:
+						area = area * ratio
+
+					if _scan_type in ['Image and Text', 'DB Create', 'Image only']:
+						if areas[6] > 0 and areas[7] >0:
+							im = cv2.rectangle(im, (areas[4], areas[5]), (areas[4] + areas[6], areas[5] + areas[7]), (255,255,0), 2)
+					if _scan_type in ['Image and Text', 'DB Create', 'Text only']:
+						if areas[2] > 0 and areas[3] >0:	
+							im = cv2.rectangle(im, (areas[0], areas[1]), (areas[0] + areas[2], areas[1] + areas[3]), (255,0,0), 2)
+					
+				cv2.imshow("Display ratio: " + str(int(ratio*100)) + "%", im)
+				cv2.waitKey(0)
+			else:
+				self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])		
+		else:
+			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])	
+
+
 	def Btn_OCR_Select_Area_Advanced(self):
 		_scan_type = self.ScanType.get()
 
@@ -742,8 +780,12 @@ class OCR_Project(Frame):
 			_index = random.randint(0, len(self.OCR_File_Path)-1)
 			if os.path.isfile(self.OCR_File_Path[_index]):
 				im = cv2.imread(self.OCR_File_Path[_index])
+				im, ratio = self.Resize_Image_by_ratio(im)
+				'''
 				(_h, _w) = im.shape[:2]
 				ratio = 720 / _h
+				'''
+				
 				if ratio != 1:
 					width = int(im.shape[1] * ratio)
 					height = int(im.shape[0] * ratio)
@@ -752,10 +794,15 @@ class OCR_Project(Frame):
 
 				for row in self.Treeview.get_children():
 					child = self.Treeview.item(row)
+					areas = child["values"]
+					print('1', areas)
+					for area in areas:
+						area = area * ratio
+					print('2', areas)
 					if _scan_type in ['Image and Text', 'DB Create', 'Text only']:
-						im = cv2.rectangle(im, (child["values"][0], child["values"][1]), (child["values"][0] + child["values"][2], child["values"][1] + child["values"][3]), (255,0,0), 2)
+						im = cv2.rectangle(im, (areas[0], areas[1]), (areas[0] + areas[2], areas[1] + areas[3]), (255,0,0), 2)
 					if _scan_type in ['Image and Text', 'DB Create', 'Image only']:
-						im = cv2.rectangle(im, (child["values"][4], child["values"][5]), (child["values"][4] + child["values"][6], child["values"][5] + child["values"][7]), (255,255,0), 2)
+						im = cv2.rectangle(im, (areas[4], areas[5]), (areas[4] + areas[6], areas[5] + areas[7]), (255,255,0), 2)
 				location = [0,0,0,0]
 				location2 = [0,0,0,0]
 				if _scan_type in ['Image and Text', 'DB Create', 'Text only']:
@@ -765,13 +812,42 @@ class OCR_Project(Frame):
 				if _scan_type in ['Image and Text', 'DB Create', 'Image only']:
 					location2 = cv2.selectROI("Select COMPONENT area", im, showCrosshair=False,fromCenter=False)
 					cv2.destroyAllWindows() 
-				
+				#imCrop = im[int(area[1]/ratio):int(area[1]/ratio + area[3]/ratio), int(area[0]/ratio):int(area[0]/ratio + area[2]/ratio)]
+				for area in location:
+					area = area/ratio
+				for area in location2:
+					area = area/ratio
+				print(location)
+				print(location2)
 				self.Treeview.insert('', 'end', text= '', values=(str(location[0]), str(location[1]), str(location[2]), str(location[3]), str(location2[0]), str(location2[1]), str(location2[2]), str(location2[3]) ))
 				
 			else:
 				self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])		
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])				
+
+	def Resize_Image_by_ratio(self, img):
+		global WIDTH, HEIGHT
+		
+		(_h, _w) = img.shape[:2]
+		_ratio = 1
+		while True:
+			temp_w = _w * _ratio
+			temp_h = _h * _ratio
+			if temp_h > HEIGHT*0.75 or temp_w > WIDTH*0.75:
+				_ratio = int(_ratio * 90)/100
+			else:
+				break
+		
+		if _ratio != 1:
+			width = int(img.shape[1] * _ratio)
+			height = int(img.shape[0] * _ratio)
+			dim = (width, height)
+			img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+		
+		actual_ratio = _ratio
+
+		return img, actual_ratio	
 
 	def Btn_OCR_Input_Text_Area(self):
 
@@ -874,30 +950,7 @@ class OCR_Project(Frame):
 		
 		return img
 
-	def Btn_OCR_Preview_Areas(self):
-
-		_scan_type = self.ScanType.get()
-
-		if self.OCR_File_Path != None:
-			_index = random.randint(0, len(self.OCR_File_Path)-1)
-			if os.path.isfile(self.OCR_File_Path[_index]):
-				im = self.Function_Load_Img(self.OCR_File_Path[_index])
-				for row in self.Treeview.get_children():
-					child = self.Treeview.item(row)
-
-					if _scan_type in ['Image and Text', 'DB Create', 'Image only']:
-						if child["values"][6] > 0 and child["values"][7] >0:
-							im = cv2.rectangle(im, (child["values"][4], child["values"][5]), (child["values"][4] + child["values"][6], child["values"][5] + child["values"][7]), (255,255,0), 2)
-					if _scan_type in ['Image and Text', 'DB Create', 'Text only']:
-						if child["values"][2] > 0 and child["values"][3] >0:	
-							im = cv2.rectangle(im, (child["values"][0], child["values"][1]), (child["values"][0] + child["values"][2], child["values"][1] + child["values"][3]), (255,0,0), 2)
-					
-				cv2.imshow("Image", im)
-				cv2.waitKey(0)
-			else:
-				self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])		
-		else:
-			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])	
+	
 
 	def Btn_OCR_Update_Working_Language(self):
 		_data_ = str(self.TesseractDataPath.get())
@@ -1278,9 +1331,7 @@ def Function_Batch_OCR_Execute(
 		percent = ShowProgress(process_count, total_process, process_ratio, current_ratio )
 		Process_Queue.put(percent)		
 
-		row_height = scan_areas[0][7]
-		cell_width = scan_areas[0][2]* (1/6)
-		Function_Export_Image_Compare_Test_Result(result, _unique_image_dir,result_file, cell_width, row_height)
+		Function_Export_Image_Compare_Test_Result(result, _unique_image_dir,result_file)
 		percent = ShowProgress(1, 1)
 		Process_Queue.put(percent)
 		
@@ -1550,8 +1601,7 @@ def Function_Compare_2_Image(source_image_path, target_image_path):
 	result = cv2.matchTemplate(source_image, target_image, cv2.TM_CCOEFF_NORMED)
 	(_, maxVal, _, maxLoc) = cv2.minMaxLoc(result)
 	#print('maxVal', maxVal)
-	if maxVal > 0.7:
-		
+	if maxVal > 0.8:
 		return True
 	else:
 		return False
@@ -1986,20 +2036,19 @@ def Function_Export_Gacha_Full_Test_Result(result_obj, image_dir, result_path, c
 	summary.save(result_path)	
 	summary.close()
 
-def Function_Export_Image_Compare_Test_Result(result_obj, image_dir, result_path, cell_width, row_height):
+def Function_Export_Image_Compare_Test_Result(result_obj, image_dir, result_path):
 
 	summary = Workbook()
 	ws =  summary.active
 	ws.title = 'Summary'
 	Header = ['Index', 'Image', 'Amount', 'Name (From DB)', 'Match Type']
+	ws.cell(row=3, column=5).value = 'Image compare: Image exact math'
 	Col = 1
 	Row = 2
 	for Par in Header:
 		ws.cell(row=Row, column=Col).value = Par
 		Col +=1
 	Row +=1
-
-	
 	
 	_index = 0
 
@@ -2008,18 +2057,22 @@ def Function_Export_Image_Compare_Test_Result(result_obj, image_dir, result_path
 		ws.cell(row=Row, column=1).value = _index
 
 		cell_image = Image(component['image'])
+		curent_w = cell_image.width
+		curent_h = cell_image.height
+		_size = 128
+		_ratio = _size/curent_w
+		cell_image.width = _size
+		cell_image.height = curent_h*_ratio
 		cell_image.anchor = 'B' + str(Row)
 		ws.add_image(cell_image)
 
 		count = component['count']
 		ws.cell(row=Row, column=3).value = count
 	
-		if row_height:
-			ws.row_dimensions[Row].height = row_height
-		if cell_width:
-			ws.column_dimensions['B'].width = cell_width
-	
-		ws.cell(row=Row, column=4).value = component['name']
+		ws.row_dimensions[Row].height = int(curent_h*_ratio/1.3)
+		ws.column_dimensions['B'].width = 19
+		if 'name' in component:
+			ws.cell(row=Row, column=4).value = component['name']
 
 		#ws.cell(row=Row, column=6).value = component['match_type']
 	
@@ -2036,7 +2089,13 @@ def Function_Export_Image_Compare_Test_Result(result_obj, image_dir, result_path
 	for column_letter in column_letters:
 		ws.column_dimensions[column_letter].bestFit = True
 
-
+	# Split path, filename and extension
+	_path, _filename = os.path.split(result_path)
+	_raw_filename, _extension = os.path.splitext(_filename)
+	# Add timestamp to _raw_filename
+	_filename = _raw_filename + '_' + timestamp + _extension
+	# Join path and _filename
+	result_path = os.path.join(_path, _filename)
 	summary.save(result_path)	
 	summary.close()
 
@@ -2222,6 +2281,7 @@ def initFolder(dir_path):
 
 
 def main():
+	global WIDTH, HEIGHT
 	Process_Queue = Queue()
 	Result_Queue = Queue()
 	Status_Queue = Queue()
@@ -2231,6 +2291,9 @@ def main():
 	Default_Manager = MyManager.list()
 	
 	root = Tk()
+	WIDTH = root.winfo_screenwidth()
+	HEIGHT = root.winfo_screenheight()
+	
 	My_Queue = {}
 	My_Queue['Process_Queue'] = Process_Queue
 	My_Queue['Result_Queue'] = Result_Queue
@@ -2243,7 +2306,7 @@ def main():
 	OCR_Project(root, Queue = My_Queue, Manager = My_Manager,)
 	
 	#root.overrideredirect(1)
-	root.attributes("-alpha", 0.95)
+	root.attributes("-alpha", 0.98)
 
 	root.mainloop()  
 
