@@ -311,9 +311,12 @@ class OCR_Project(Frame):
 		self.Debugger.grid(row=Row, column=2, columnspan=8, padx=5, pady=5, sticky=W+E+N+S)
 
 		Row += 1
-		Label(Tab, text= self.LanguagePack.Label['WorkingRes']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
-		Radiobutton(Tab, width= 10, text=  '720p', value=1, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=2, padx=0, pady=5, sticky=W)
-		Radiobutton(Tab, width= 10, text=  '1080p', value=2, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=3, padx=0, pady=5, sticky=W)
+		Label(Tab, text= 'Threshold (by %)').grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		self.threshold = Text(Tab, width = 20, height=1) #
+		self.threshold.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
+		self.threshold.insert(END, '0.6')
+		#Radiobutton(Tab, width= 10, text=  '720p', value=1, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=2, padx=0, pady=5, sticky=W)
+		#Radiobutton(Tab, width= 10, text=  '1080p', value=2, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=3, padx=0, pady=5, sticky=W)
 	
 		Row += 1
 
@@ -1002,7 +1005,7 @@ class OCR_Project(Frame):
 			if not os.path.isdir(self.Output_Result_Folder):
 				os.mkdir(self.Output_Result_Folder)
 		output_result_file = self.Output_Result_Folder + '/result.csv'
-		_ratio = 720	
+		#_ratio = 720	
 		_scan_areas = []
 		for row in self.Treeview.get_children():
 			child = self.Treeview.item(row)
@@ -1016,9 +1019,23 @@ class OCR_Project(Frame):
 		#_tess_language = self.WorkingLanguage.get()
 
 		self.Btn_Open_Result.configure(state=NORMAL)
-		db_list = []
+		
+		_threshold = float(self.threshold.get("1.0", END).replace('\n', ''))
 
-		self.OCR_Scan_Process = Process(target=Function_Batch_OCR_Execute, args=(self.Result_Queue, self.Status_Queue, self.Process_Queue, _tess_path,_tess_language, _tess_data, Image_Files, output_result_file, _ratio, _scan_areas,_scan_type, _db_path, ))
+		self.OCR_Scan_Process = Process(	target=Function_Batch_OCR_Execute, 
+											kwargs= {	'Result_Queue' : self.Result_Queue, 
+														'Status_Queue' : self.Status_Queue, 
+														'Process_Queue' : self.Process_Queue, 
+														'tess_path' : _tess_path, 
+														'tess_language' : _tess_language, 
+														'tess_data' : _tess_data,
+														'image_files' : Image_Files,
+														'result_file' : output_result_file, 
+														'scan_areas' : _scan_areas, 
+														'scan_type' : _scan_type, 
+														'db_path' : _db_path,
+														'threshold' : _threshold,	
+													},)
 		
 		self.OCR_Scan_Process.start()
 		
@@ -1150,7 +1167,7 @@ class OCR_Project(Frame):
 ###########################################################################################
 
 def Function_Batch_OCR_Execute(
-	Result_Queue, Status_Queue, Process_Queue, tess_path, tess_language, tess_data, image_files, result_file, ratio, scan_areas, scan_type = 'Text only', db_path = [], **kwargs):
+	Result_Queue, Status_Queue, Process_Queue, tess_path, tess_language, tess_data, image_files, result_file, scan_areas, scan_type = 'Text only', db_path = [], threshold = 0.6, **kwargs):
 	
 	advanced_tessdata_dir_config = '--psm 7 --tessdata-dir ' + '"' + tess_data + '"'
 
@@ -1175,13 +1192,13 @@ def Function_Batch_OCR_Execute(
 
 		Status_Queue.put('Crop image')
 		process_ratio = 0.04
-		image_info = Function_Crop_All_Text(Process_Queue, image_files, scan_areas, ratio, _all_image_dir, process_ratio, current_ratio)
+		image_info = Function_Crop_All_Text(Process_Queue, image_files, scan_areas, _all_image_dir, process_ratio, current_ratio)
 		current_ratio+=process_ratio
 
 
 		Status_Queue.put('Filter unique images ('+ str(image_info['count']) + ')')
 		process_ratio =0.10
-		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_image_dir, _unique_text_image_dir, process_ratio, current_ratio)
+		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_image_dir, _unique_text_image_dir, threshold, process_ratio, current_ratio)
 		current_ratio+=process_ratio
 		
 		count = 0
@@ -1293,13 +1310,12 @@ def Function_Batch_OCR_Execute(
 
 		Status_Queue.put('Crop image')
 		process_ratio = 0.04
-		image_info = Function_Crop_All_Image(Process_Queue, image_files, scan_areas, ratio, _all_image_dir, process_ratio, current_ratio)
+		image_info = Function_Crop_All_Image(Process_Queue, image_files, scan_areas, _all_image_dir, process_ratio, current_ratio)
 		current_ratio+=process_ratio
-
 
 		Status_Queue.put('Filter unique images ('+ str(image_info['count']) + ')')
 		process_ratio =0.5
-		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_image_dir, _unique_image_dir, process_ratio, current_ratio)
+		_draft_result = Function_Filter_Unique_Image(Process_Queue, _all_image_dir, _unique_image_dir, threshold, process_ratio, current_ratio)
 		current_ratio+=process_ratio
 		total_process = len(_draft_result.keys())
 		result = []
@@ -1312,7 +1328,7 @@ def Function_Batch_OCR_Execute(
 			for row in DB:
 				_template = _db_dir + '\\' + row['path']
 				if os.path.isfile(_template):
-					_image_compare_result = Function_Compare_2_Image(_temp_template, _template)
+					_image_compare_result = Function_Compare_2_Image(_temp_template, _template, threshold)
 					if _image_compare_result == True:
 						_name = row[tess_language]
 						temp_result['name'] = _name
@@ -1360,13 +1376,13 @@ def Function_Batch_OCR_Execute(
 
 		Status_Queue.put('Crop image')
 		process_ratio = 0.1
-		image_info = Function_Crop_All_Component_And_Text(Process_Queue, image_files, scan_areas, ratio, _all_image_dir, process_ratio, current_ratio)
+		image_info = Function_Crop_All_Component_And_Text(Process_Queue, image_files, scan_areas, _all_image_dir, process_ratio, current_ratio)
 		current_ratio+=process_ratio
 
 		Status_Queue.put('Filter unique images ('+ str(image_info['count']) + ')')
 		#Define weith of the current step
 		process_ratio =0.3
-		_draft_result = Function_Filter_Unique_DB(Process_Queue, image_info, _unique_image_dir, process_ratio, current_ratio)
+		_draft_result = Function_Filter_Unique_DB(Process_Queue, image_info, _unique_image_dir, threshold, process_ratio, current_ratio)
 		print('_draft_result', _draft_result)
 
 		current_ratio+=process_ratio
@@ -1388,7 +1404,7 @@ def Function_Batch_OCR_Execute(
 			for row in DB:
 				_template = _db_dir + '\\' + row['path']
 				if os.path.isfile(_template):
-					_image_compare_result = Function_Compare_2_Image(_temp_template, _template)
+					_image_compare_result = Function_Compare_2_Image(_temp_template, _template, threshold)
 					if _image_compare_result == True:
 						_name = row[tess_language]
 						temp_result['image'] = _temp_template
@@ -1508,7 +1524,7 @@ def Function_Batch_OCR_Execute(
 
 		Status_Queue.put('Crop image')
 		process_ratio = 0.04
-		image_info = Function_Crop_All_Component_And_Text(Process_Queue, image_files, scan_areas, ratio, _template_dir, process_ratio, current_ratio)
+		image_info = Function_Crop_All_Component_And_Text(Process_Queue, image_files, scan_areas, _template_dir, process_ratio, current_ratio)
 		
 		current_ratio+=process_ratio
 		percent = ShowProgress(process_ratio, 100)
@@ -1518,7 +1534,7 @@ def Function_Batch_OCR_Execute(
 		Status_Queue.put('Filter unique images ('+ str(image_info['count']) + ')')
 		process_ratio =0.5
 
-		_draft_result = Function_Filter_Unique_DB(Process_Queue, image_info, _unique_image_dir, process_ratio, current_ratio)
+		_draft_result = Function_Filter_Unique_DB(Process_Queue, image_info, _unique_image_dir, threshold, process_ratio, current_ratio)
 
 		current_ratio+=process_ratio
 		total_process = len(_draft_result)
@@ -1546,10 +1562,11 @@ def Function_Batch_OCR_Execute(
 	else:
 		Status_Queue.put('Unsupport type')	
 
-def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_config, input_image, ratio, scan_areas, result_file,):
+def Get_Text_From_Single_Image(tess_path, tess_language, advanced_tessdata_dir_config, input_image, scan_areas, result_file,):
 
 	pytesseract.pytesseract.tesseract_cmd = tess_path
-	_img = Load_Image_by_Ratio(input_image, ratio)
+	#_img = Load_Image_by_Ratio(input_image)
+	_img = cv2.imread(input_image)
 	_result = []
 	_output_dir = os.path.dirname(result_file)
 	baseName = os.path.basename(input_image)
@@ -1584,7 +1601,7 @@ def Function_Get_Text_from_Image(tess_path, tess_language, advanced_tessdata_dir
 	ocr = Get_Text(imCrop, tess_language, advanced_tessdata_dir_config)
 	return ocr
 
-def Function_Compare_2_Image(source_image_path, target_image_path):
+def Function_Compare_2_Image(source_image_path, target_image_path, threshold):
 	if not os.path.isfile(source_image_path):
 		print('File not existed: ', source_image_path)
 		return False
@@ -1601,7 +1618,7 @@ def Function_Compare_2_Image(source_image_path, target_image_path):
 	result = cv2.matchTemplate(source_image, target_image, cv2.TM_CCOEFF_NORMED)
 	(_, maxVal, _, maxLoc) = cv2.minMaxLoc(result)
 	#print('maxVal', maxVal)
-	if maxVal > 0.8:
+	if maxVal > threshold:
 		return True
 	else:
 		return False
@@ -1622,7 +1639,7 @@ def Function_Compare_2_Component(source_image_path, target_image_path):
 	else:
 		return False
 
-def Function_Crop_All_Text(Process_Queue, source_images, scan_areas, ratio, output_dir, start_percent, process_ratio):
+def Function_Crop_All_Text(Process_Queue, source_images, scan_areas, output_dir, start_percent, process_ratio):
 	
 	total_task = len(scan_areas) * len(source_images)
 	amount = 0
@@ -1641,7 +1658,8 @@ def Function_Crop_All_Text(Process_Queue, source_images, scan_areas, ratio, outp
 		_area_count = 0
 		baseName = os.path.basename(image)
 		sourcename, ext = os.path.splitext(baseName)
-		_img = Load_Image_by_Ratio(image, ratio)
+		#_img = Load_Image_by_Ratio(image, 
+		_img = cv2.imread(image)
 		info[sourcename] = []
 		for area in scan_areas:
 			_area_count +=1
@@ -1664,7 +1682,7 @@ def Function_Crop_All_Text(Process_Queue, source_images, scan_areas, ratio, outp
 
 	return info
 
-def Function_Crop_All_Component_And_Text(Process_Queue, source_images, scan_areas, ratio, output_dir, start_percent, process_ratio):
+def Function_Crop_All_Component_And_Text(Process_Queue, source_images, scan_areas, output_dir, start_percent, process_ratio):
 	
 	total_task = len(scan_areas) * len(source_images)
 	amount = 0
@@ -1692,7 +1710,8 @@ def Function_Crop_All_Component_And_Text(Process_Queue, source_images, scan_area
 		_area_count = 0
 		baseName = os.path.basename(image)
 		sourcename, ext = os.path.splitext(baseName)
-		_img = Load_Image_by_Ratio(image, ratio)
+		#_img = Load_Image_by_Ratio(image, ratio)
+		_img = cv2.imread(image)
 		info[sourcename] = []
 		for area in scan_areas:
 			_area_count +=1
@@ -1720,7 +1739,7 @@ def Function_Crop_All_Component_And_Text(Process_Queue, source_images, scan_area
 
 	return info
 
-def Function_Crop_All_Image(Process_Queue, source_images, scan_areas, ratio, output_dir, start_percent, process_ratio):
+def Function_Crop_All_Image(Process_Queue, source_images, scan_areas, output_dir, start_percent, process_ratio):
 	
 	total_task = len(scan_areas) * len(source_images)
 	amount = 0
@@ -1739,7 +1758,8 @@ def Function_Crop_All_Image(Process_Queue, source_images, scan_areas, ratio, out
 		_area_count = 0
 		baseName = os.path.basename(image)
 		sourcename, ext = os.path.splitext(baseName)
-		_img = Load_Image_by_Ratio(image, ratio)
+		#_img = Load_Image_by_Ratio(image, ratio)
+		_img = cv2.imread(image)
 		info[sourcename] = []
 		for area in scan_areas:
 			_area_count +=1
@@ -1762,7 +1782,7 @@ def Function_Crop_All_Image(Process_Queue, source_images, scan_areas, ratio, out
 
 	return info
 
-def Function_Filter_Unique_DB(Process_Queue, all_image_info, unique_images_dir, start_percent, process_ratio):
+def Function_Filter_Unique_DB(Process_Queue, all_image_info, unique_images_dir, threshold, start_percent, process_ratio):
 
 	#all_image_info['area'] = _area_count	
 	unique_images_folder = os.path.basename(unique_images_dir)
@@ -1796,7 +1816,7 @@ def Function_Filter_Unique_DB(Process_Queue, all_image_info, unique_images_dir, 
 		else:
 			all_result = False
 			for target_image in unique:
-				result = Function_Compare_2_Image(component_image, target_image)
+				result = Function_Compare_2_Image(component_image, target_image, threshold)
 				if result == True:
 					all_result = True
 					for element in unique_data:
@@ -1820,7 +1840,7 @@ def Function_Filter_Unique_DB(Process_Queue, all_image_info, unique_images_dir, 
 
 	return unique_data
 
-def Function_Filter_Unique_Image(Process_Queue, all_image_dir, unique_images_dir, start_percent, process_ratio):
+def Function_Filter_Unique_Image(Process_Queue, all_image_dir, unique_images_dir, threshold, start_percent, process_ratio):
 
 	_temp_image_files = os.listdir(all_image_dir)
 	
@@ -1843,7 +1863,7 @@ def Function_Filter_Unique_Image(Process_Queue, all_image_dir, unique_images_dir
 		else:
 			result = False
 			for target_image in unique:
-				result = Function_Compare_2_Image(source_image, target_image)
+				result = Function_Compare_2_Image(source_image, target_image, threshold)
 				if result == True:
 					base_target = os.path.basename(target_image)
 					count[base_target] += 1
@@ -2099,7 +2119,7 @@ def Function_Export_Image_Compare_Test_Result(result_obj, image_dir, result_path
 	summary.save(result_path)	
 	summary.close()
 
-def Function_Export_Auto_DB(status_queue, result_obj, tess_language, result_path):
+def Function_Export_Auto_DB(status_queue, result_obj, tess_language, result_path, threshold):
 	_exist = os.path.isfile(result_path)
 	current_db = Function_Import_DB(result_path)
 	_db_dir = os.path.dirname(result_path)
@@ -2117,7 +2137,7 @@ def Function_Export_Auto_DB(status_queue, result_obj, tess_language, result_path
 			for row in current_db:
 				_template = _db_dir + '\\' + row['path']
 				_new_template = _db_dir + '\\' + component_details['component']
-				result = Function_Compare_2_Image(_new_template, _template)
+				result = Function_Compare_2_Image(_new_template, _template, threshold)
 				if result == True:
 					#if row[tess_language] == "" and component_details['text'] != '':
 					#	print('Updating text to existed DB row.')
@@ -2130,7 +2150,7 @@ def Function_Export_Auto_DB(status_queue, result_obj, tess_language, result_path
 				for row in temp_db:
 					_template = _db_dir + '\\' + row['path']
 					_new_template = _db_dir + '\\' + component_details['component']
-					result = Function_Compare_2_Image(_new_template, _template)
+					result = Function_Compare_2_Image(_new_template, _template, threshold)
 					if result == True:
 						break
 					else:
