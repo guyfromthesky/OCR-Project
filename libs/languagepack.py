@@ -1,6 +1,9 @@
 class LanguagePackEN:
 	Menu = {}
 	Menu['File'] = "File"
+	Menu['Load'] = "Load - Ctrl+L"
+	Menu['Save'] = "Save - Ctrl+S"
+
 	Menu['LoadDictionary'] = "Load Dictionary"
 	Menu['LoadException'] = "Load Exception"
 	Menu['LoadTM'] = "Load TM"
@@ -53,6 +56,8 @@ class LanguagePackEN:
 	Button['RelativeSearch'] = "Relative Search"
 
 	Button['UpdateLanguage'] = "Get Language"
+
+	Button['ClearConfig'] = "Clear Config"
 
 	Button['SelectArea'] = "Select Location"
 	Button['AddAreaWithText'] = "Input Location"
@@ -306,6 +311,8 @@ class LanguagePackEN:
 class LanguagePackKR:
 	Menu = {}
 	Menu['File'] = "파일"
+	Menu['Load'] = "로드 - Ctrl+L"
+	Menu['Save'] = "저장 - Ctrl+S"
 	Menu['LoadDictionary'] = "사전 목록 로드"
 	Menu['LoadException'] = "예외 목록 로드"
 	Menu['LoadTM'] = "하중 번역 메모리 목록"
@@ -357,12 +364,13 @@ class LanguagePackKR:
 
 	Button['GetTitle'] = "타이틀 받기"	
 	Button['Reset'] = "초기화"	
-	Button['Load'] = "하중"	
-	Button['Save'] = "저장"	
+	Button['Load'] = "하중"
+	Button['Save'] = "저장"
 	Button['GetReport'] = "보고서 받기"	
 
 	Button['UpdateLanguage'] = "언어 가져오기"
 
+	Button['ClearConfig'] = "구성 지우기"
 
 	Option = {}
 	Option['TranslateFileName'] = "파일 이름 변환"

@@ -27,12 +27,12 @@ from tkinter.ttk import Entry, Label, Treeview, Scrollbar, OptionMenu
 from tkinter.ttk import Button, Notebook, Radiobutton
 from tkinter.ttk import Progressbar, Style
 
-from tkinter import Tk, Frame
+from tkinter import Toplevel , Tk, Frame
 from tkinter import Menu, filedialog, messagebox
 from tkinter import Text, colorchooser
 from tkinter import IntVar, StringVar
 from tkinter import W, E, S, N, END, RIGHT, HORIZONTAL, NO, CENTER
-from tkinter import WORD, NORMAL, BOTTOM, X, TOP, BOTH, Y
+from tkinter import WORD, NORMAL, BOTTOM, X, TOP, BOTH, Y, LEFT
 from tkinter import DISABLED
 
 from tkinter import scrolledtext 
@@ -69,7 +69,7 @@ DELAY1 = 20
 
 ToolDisplayName = "OCR Project"
 tool_name = 'ocr'
-rev = 1104
+rev = 1105
 a,b,c,d = list(str(rev))
 VerNum = a + '.' + b + '.' + c + chr(int(d)+97)
 
@@ -114,6 +114,8 @@ class OCR_Project(Frame):
 		self.PadY_Full = 10
 		self.StatusLength = 120
 		self.AppLanguage = 'en'
+
+		self.Input_Windows = False
 
 		self.OCR_File_Path = None
 
@@ -160,7 +162,9 @@ class OCR_Project(Frame):
 	# UI init
 	def init_UI(self):
 	
-		self.Generate_OCR_Tool_UI(self.OCR_TOOL)
+		self.Generate_OCR_TOOL_UI(self.OCR_TOOL)
+
+		#self.Generate_DATA_SCRAWLER_TOOL_UI(self.DATA_SCRAWLER)
 
 		self.Generate_OCR_Setting_UI(self.OCR_SETTING)
 
@@ -181,6 +185,11 @@ class OCR_Project(Frame):
 		file.add_command(label =  self.LanguagePack.Menu['Exit'], command = self.parent.destroy) 
 		'''
 		# Adding Help Menu
+		file_ = Menu(menubar, tearoff = 0) 
+		menubar.add_cascade(label =  self.LanguagePack.Menu['File'], menu = file_) 
+		file_.add_command(label =  self.LanguagePack.Menu['Load'], command = self.Btn_OCR_Browse_Config_File) 
+		file_.add_command(label =  self.LanguagePack.Menu['Save'], command = self.Btn_OCR_Save_Config_File) 
+
 		help_ = Menu(menubar, tearoff = 0) 
 		menubar.add_cascade(label =  self.LanguagePack.Menu['Help'], menu = help_) 
 		help_.add_command(label =  self.LanguagePack.Menu['GuideLine'], command = self.Menu_Function_Open_Main_Guideline) 
@@ -200,9 +209,10 @@ class OCR_Project(Frame):
 		self.TAB_CONTROL = Notebook(self.parent)
 
 		self.OCR_TOOL = Frame(self.TAB_CONTROL)
-		#self.TAB_CONTROL.add(self.AutoTest, text= self.LanguagePack.Tab['AutomationTest'])
-		self.TAB_CONTROL.add(self.OCR_TOOL, text= 'OCR Project')
-		
+		self.TAB_CONTROL.add(self.OCR_TOOL, text= 'Gacha Analyser')
+
+		#self.DATA_SCRAWLER = Frame(self.TAB_CONTROL)
+		#self.TAB_CONTROL.add(self.OCR_TOOL, text= 'Data Scrawler')	
 		
 		self.OCR_SETTING = Frame(self.TAB_CONTROL)
 		self.TAB_CONTROL.add(self.OCR_SETTING, text= 'OCR Setting')
@@ -211,7 +221,7 @@ class OCR_Project(Frame):
 		return
 
 	#STABLE
-	def Generate_OCR_Tool_UI(self, Tab):
+	def Generate_OCR_TOOL_UI(self, Tab):
 		'''
 		Create main tab
 		'''
@@ -226,13 +236,97 @@ class OCR_Project(Frame):
 		Btn_Browse_Image.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=E)
 
 		Row+=1
-		self.Str_OCR_Config_Path = StringVar()
-		Label(Tab, text= self.LanguagePack.Label['ScanConfig']).grid(row=Row, column=1, padx=5, pady=5, sticky= W)
-		self.Entry_Old_File_Path = Entry(Tab,width = self.Path_Size, state="readonly", textvariable=self.Str_OCR_Config_Path)
-		self.Entry_Old_File_Path.grid(row=Row, column=2, columnspan=7, padx=0, pady=5, sticky=E+W)
+
+		Label(Tab, text= 'Threshold (by %)').grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		self.threshold = Text(Tab, width = 20, height=1) #
+		self.threshold.grid(row=Row, column=2, padx=5, pady=5, sticky=W)
+		self.threshold.insert(END, '0.6')
+		#Radiobutton(Tab, width= 10, text=  '720p', value=1, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=2, padx=0, pady=5, sticky=W)
+		#Radiobutton(Tab, width= 10, text=  '1080p', value=2, variable=self.Resolution, command= self.OCR_Setting_Set_Working_Resolution).grid(row=Row, column=3, padx=0, pady=5, sticky=W)
+
+		Btn_Update_Language = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['UpdateLanguage'], command= self.Btn_OCR_Update_Working_Language)
+		Btn_Update_Language.grid(row=Row, column=4, padx=5, pady=5, sticky=W)
+
+		Label(Tab, text= self.LanguagePack.Label['BrowseType']).grid(row=Row, column=8, rowspan=2, pady=5, sticky=W)
+		Radiobutton(Tab, width= 10, text=  self.LanguagePack.Option['Folder'], value=1, variable=self.Browse_Type, command=self.OCR_Setting_Set_Browse_Type).grid(row=Row, column=9,columnspan=2,padx=0, pady=5, sticky=E)
+	
+		Row+=1
+		Radiobutton(Tab, width= 10, text= self.LanguagePack.Option['File'], value=2, variable=self.Browse_Type, command=self.OCR_Setting_Set_Browse_Type).grid(row=Row, column=9,columnspan=2, padx=0, pady=5, sticky=E)
 		
-		Btn_Browse_Setting = Button(Tab, width = self.Button_Width_Half, text=  self.LanguagePack.Button['Browse'], command= self.Btn_OCR_Browse_Config_File)
-		Btn_Browse_Setting.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=E)
+		Label(Tab, text= self.LanguagePack.Label['ScanType']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		_scan_type = ['', 'Text only', 'Image only', 'Image and Text', 'DB Create']
+		Option_ScanType = OptionMenu(Tab, self.ScanType, *_scan_type, command = self.OCR_Setting_Set_Scan_Type)
+		Option_ScanType.config(width=20)
+		Option_ScanType.grid(row=Row, column=2,padx=0, pady=5, sticky=W)
+
+		Label(Tab, text= self.LanguagePack.Label['WorkingLang']).grid(row=Row, column=3, padx=5, pady=5, sticky=W)
+		self.option_working_language = AutocompleteCombobox(Tab)
+		self.option_working_language.Set_Entry_Width(15)
+		self.option_working_language.grid(row=Row, column=4, padx=5, pady=5, sticky=W)
+		
+		Row+=1
+		#
+		self.Generate_Treeview_Advanced_UI(Tab, Row)
+
+		Btn_Select_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['SelectArea'], command= self.Btn_OCR_Select_Area_Advanced)
+		Btn_Select_Area.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+		
+		Row+=1
+		Btn_Preview_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['PreviewArea'], command= self.Btn_OCR_Preview_Areas)
+		Btn_Preview_Area.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
+
+		Row+=1
+		Clear_Config = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['ClearConfig'], command= self.remove_treeview)
+		Clear_Config.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+		#Btn_Execute.configure(state=DISABLED)
+
+		Row += 1
+		Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['Load'], command= self.Btn_OCR_Browse_Config_File).grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+		Row += 1
+		Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['Save'], command= self.Btn_OCR_Save_Config_File).grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+
+
+		Row+=1
+		Label(Tab, text= self.LanguagePack.Label['Debug']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		self.Debugger = scrolledtext.ScrolledText(Tab, width=110, height=5, undo=False, wrap=WORD, )
+		self.Debugger.grid(row=Row, column=2, columnspan=9, padx=5, pady=5, sticky=W+E+N+S)
+
+		Row += 1
+	
+		Row += 1
+
+
+		Row+=1
+		Label(Tab, text= self.LanguagePack.Label['Progress']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
+		self.progressbar = Progressbar(Tab, orient=HORIZONTAL, length=800,  mode='determinate')
+		self.progressbar["maximum"] = 1000
+		self.progressbar.grid(row=Row, column=2, columnspan=5, padx=5, pady=5, sticky=E+W)
+
+		self.Btn_Open_Result = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['OpenOutput'], command= self.Open_OCR_Result_Folder)
+		self.Btn_Open_Result.grid(row=Row, column=7, columnspan=2,padx=5, pady=5, sticky=W)
+		self.Btn_Open_Result.configure(state=DISABLED)
+
+		Btn_Execute = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['Scan'], command= self.Btn_OCR_Execute)
+		Btn_Execute.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+
+		Tab.bind_all('<Control-l>', self.Btn_OCR_Browse_Config_File)
+		Tab.bind_all('<Control-s>', self.Btn_OCR_Save_Config_File)	
+
+
+	# WIP
+	def Generate_DATA_SCRAWLER_TOOL_UI(self, Tab):
+		'''
+		Create main tab
+		'''
+		
+		Row=1
+		self.Str_Scrawler_Image_Path = StringVar()
+		Label(Tab, text=  self.LanguagePack.Label['ImageSource']).grid(row=Row, column=1, padx=5, pady=5, sticky= W)
+		self.Entry_Scrawler_Image_Path = Entry(Tab,width = self.Path_Size, state="readonly", textvariable=self.Str_Scrawler_Image_Path)
+		self.Entry_Scrawler_Image_Path.grid(row=Row, column=2, columnspan=7, padx=0, pady=5, sticky=E+W)
+		 
+		Btn_Browse_Image = Button(Tab, width = self.Button_Width_Half, text=  self.LanguagePack.Button['Browse'], command= self.Btn_OCR_Browse_Image_Data)
+		Btn_Browse_Image.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=E)
 		
 		Row+=1
 		Label(Tab, width= 10 ,text= self.LanguagePack.Label['CenterX']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
@@ -292,15 +386,6 @@ class OCR_Project(Frame):
 		Btn_Preview_Area.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
 
 		Row+=1
-		Btn_Save_Setting = Button(Tab, width = self.Button_Width_Half, text=  self.LanguagePack.Button['SaveConfig'], command= self.Btn_OCR_Save_Config_File)
-		Btn_Save_Setting.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
-
-		Row+=1
-		self.Btn_Open_Result = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['OpenOutput'], command= self.Open_OCR_Result_Folder)
-		self.Btn_Open_Result.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
-		self.Btn_Open_Result.configure(state=DISABLED)
-
-		Row+=1
 		Btn_Update_Language = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['UpdateLanguage'], command= self.Btn_OCR_Update_Working_Language)
 		Btn_Update_Language.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
 		#Btn_Execute.configure(state=DISABLED)
@@ -330,7 +415,12 @@ class OCR_Project(Frame):
 		self.option_working_language = AutocompleteCombobox(Tab)
 		self.option_working_language.Set_Entry_Width(10)
 		self.option_working_language.grid(row=Row, column=4, padx=5, pady=5, sticky=W)
-		
+
+		Row+=1
+		self.Btn_Open_Result = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['OpenOutput'], command= self.Open_OCR_Result_Folder)
+		self.Btn_Open_Result.grid(row=Row, column=9, columnspan=2,padx=5, pady=5, sticky=W)
+		self.Btn_Open_Result.configure(state=DISABLED)
+
 		Row+=1
 		Label(Tab, text= self.LanguagePack.Label['Progress']).grid(row=Row, column=1, padx=5, pady=5, sticky=W)
 		self.progressbar = Progressbar(Tab, orient=HORIZONTAL, length=800,  mode='determinate')
@@ -339,6 +429,7 @@ class OCR_Project(Frame):
 
 		Btn_Execute = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['Scan'], command= self.Btn_OCR_Execute)
 		Btn_Execute.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+	
 
 	def Generate_OCR_Setting_UI(self, Tab):
 		''''
@@ -387,7 +478,7 @@ class OCR_Project(Frame):
 		styles.configure('Treeview',rowheight=15)
 
 		self.Treeview.bind("<Delete>", self.delete_treeview_line)	
-		self.Treeview.bind("<Double-1>", self.Treeview_OCR_Select_Row)
+		self.Treeview.bind("<Double-1>", self.Treeview_Edit_Row)
 	
 	def Generate_Treeview_Advanced_UI(self, Tab, Row = 5):
 		TreeView_Row = 5
@@ -413,7 +504,7 @@ class OCR_Project(Frame):
 		styles.configure('Treeview',rowheight=15)
 
 		self.Treeview.bind("<Delete>", self.delete_treeview_line)	
-		self.Treeview.bind("<Double-1>", self.Treeview_OCR_Select_Row)
+		self.Treeview.bind("<Double-1>", self.Treeview_Edit_Row)
 
 
 
@@ -483,13 +574,22 @@ class OCR_Project(Frame):
 	def Show_Error_Message(self, ErrorText):
 		messagebox.showinfo('Error...', ErrorText)	
 
+	def rebuild_UI(self):
+		if messagebox.askokcancel("Quit", "Do you want to restart?"):
+			self.parent.destroy()
+			main()
+		else:
+			messagebox.showinfo('Language update','The application\'s language will be changed in next session.')	
+
 	def SaveAppLanguage(self, language):
 		self.Write_Debug(self.LanguagePack.ToolTips['AppLanuageUpdate'] + " "+ language) 
 		self.AppConfig.Save_Config(self.AppConfig.Ocr_Tool_Config_Path, 'OCR_TOOL', 'app_lang', language)
+		self.rebuild_UI()
 
 	def SetLanguageKorean(self):
 		self.AppLanguage = 'kr'
 		self.SaveAppLanguage(self.AppLanguage)
+
 	
 	def SetLanguageEnglish(self):
 		self.AppLanguage = 'en'
@@ -624,7 +724,7 @@ class OCR_Project(Frame):
 		#print(self.BackgroundColor)
 		return
 
-	def Btn_OCR_Browse_Config_File(self):
+	def Btn_OCR_Browse_Config_File(self, event=None):
 
 		_scan_type = self.ScanType.get()
 
@@ -634,7 +734,7 @@ class OCR_Project(Frame):
 		
 		if os.path.isfile(config_file):
 			print('config_file', config_file)
-			self.Str_OCR_Config_Path.set(config_file)
+			#self.Str_OCR_Config_Path.set(config_file)
 			self.remove_treeview()
 
 			all_col = ['x', 'y', 'w', 'h', 'x1', 'y1', 'w1', 'h1']	
@@ -652,7 +752,7 @@ class OCR_Project(Frame):
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
 
-	def Btn_OCR_Save_Config_File(self):
+	def Btn_OCR_Save_Config_File(self, event=None):
 		'''
 		Save all added scan areas to csv file.
 		'''
@@ -753,13 +853,21 @@ class OCR_Project(Frame):
 				#im = self.Function_Load_Img(self.OCR_File_Path[_index])
 				im = cv2.imread(self.OCR_File_Path[_index])
 				im, ratio = self.Resize_Image_by_ratio(im)
-
+				'''
+				if ratio != 1:
+					width = int(im.shape[1] * ratio)
+					height = int(im.shape[0] * ratio)
+					dim = (width, height)
+					im = cv2.resize(im, dim, interpolation = cv2.INTER_AREA)
+				'''
+				
 				for row in self.Treeview.get_children():
 					child = self.Treeview.item(row)
-					areas = child["values"]
+					old_areas = child["values"]
+					areas = []
+					for area in old_areas:
+						areas.append(int(area * ratio))
 
-					for area in areas:
-						area = area * ratio
 
 					if _scan_type in ['Image and Text', 'DB Create', 'Image only']:
 						if areas[6] > 0 and areas[7] >0:
@@ -775,7 +883,6 @@ class OCR_Project(Frame):
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])	
 
-
 	def Btn_OCR_Select_Area_Advanced(self):
 		_scan_type = self.ScanType.get()
 
@@ -787,21 +894,21 @@ class OCR_Project(Frame):
 				'''
 				(_h, _w) = im.shape[:2]
 				ratio = 720 / _h
-				'''
 				
 				if ratio != 1:
 					width = int(im.shape[1] * ratio)
 					height = int(im.shape[0] * ratio)
 					dim = (width, height)
 					im = cv2.resize(im, dim, interpolation = cv2.INTER_AREA)
+				'''
 
 				for row in self.Treeview.get_children():
 					child = self.Treeview.item(row)
-					areas = child["values"]
-					print('1', areas)
-					for area in areas:
-						area = area * ratio
-					print('2', areas)
+					old_areas = child["values"]
+					areas = []
+					for area in old_areas:
+						areas.append(int(area * ratio))
+
 					if _scan_type in ['Image and Text', 'DB Create', 'Text only']:
 						im = cv2.rectangle(im, (areas[0], areas[1]), (areas[0] + areas[2], areas[1] + areas[3]), (255,0,0), 2)
 					if _scan_type in ['Image and Text', 'DB Create', 'Image only']:
@@ -816,13 +923,18 @@ class OCR_Project(Frame):
 					location2 = cv2.selectROI("Select COMPONENT area", im, showCrosshair=False,fromCenter=False)
 					cv2.destroyAllWindows() 
 				#imCrop = im[int(area[1]/ratio):int(area[1]/ratio + area[3]/ratio), int(area[0]/ratio):int(area[0]/ratio + area[2]/ratio)]
+				
+				_new_location = []
 				for area in location:
-					area = area/ratio
+					_new_location.append(int(area/ratio))
+
+				_new_location2 = []
 				for area in location2:
-					area = area/ratio
-				print(location)
-				print(location2)
-				self.Treeview.insert('', 'end', text= '', values=(str(location[0]), str(location[1]), str(location[2]), str(location[3]), str(location2[0]), str(location2[1]), str(location2[2]), str(location2[3]) ))
+					_new_location2.append(int(area/ratio))	
+				
+				#Check if location and location2 is not empty:
+				if _new_location != [0,0,0,0] and _new_location2 != [0,0,0,0]:
+					self.Treeview.insert('', 'end', text= '', values=(str(_new_location[0]), str(_new_location[1]), str(_new_location[2]), str(_new_location[3]), str(_new_location2[0]), str(_new_location2[1]), str(_new_location2[2]), str(_new_location2[3]) ))
 				
 			else:
 				self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])		
@@ -847,8 +959,9 @@ class OCR_Project(Frame):
 			height = int(img.shape[0] * _ratio)
 			dim = (width, height)
 			img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
-		
-		actual_ratio = _ratio
+
+		(_new_h, _new_w) = img.shape[:2]
+		actual_ratio = _new_h/_h
 
 		return img, actual_ratio	
 
@@ -873,6 +986,13 @@ class OCR_Project(Frame):
 			self.Treeview.insert('', 'end', text= '', values=(child["values"][0], child["values"][1], child["values"][2], child["values"][3], str(int(_x)), str(int(_y)), str(int(_w)), str(int(_h))))
 
 		#self.Update_Treeview_Advanced_UI()
+
+	def Treeview_Edit_Row(self, event):
+		'''
+		Function activate when double click an entry from Treeview
+		'''
+		self.Focused_Item = self.Treeview.focus()
+		self.Generate_Arg_Edit_Window(self.Focused_Item)
 
 	def Treeview_OCR_Select_Row(self, event):
 		'''
@@ -911,6 +1031,70 @@ class OCR_Project(Frame):
 		except:
 			self.Str_Height.insert("end", 0)
 
+	
+	def Generate_Arg_Edit_Window(self, treeview_node):
+
+		if self.Input_Windows == True:
+			return
+		self.Input_Windows = True
+
+		child_windows = Toplevel(self.parent)
+		child_windows.resizable(False, False)
+		child_windows.title("Input the action argument")
+		child_windows.focus_force()
+
+		row = 1
+		_column_list = ['x', 'y', 'w', 'h', 'x1', 'y1', 'w1', 'w1']
+		arg_data_list = []
+		child = self.Treeview.item(treeview_node)
+		value = child['values']
+		print('Value: ', value)
+		value_index=  0
+		for arg in _column_list:
+			arg_data = {}
+			arg_data['variable_type'] = None
+			arg_data['value_variable'] = None
+			arg_data['widget'] = None
+			arg_data['button'] = None
+
+			Label(child_windows, text= arg, anchor=S, justify=LEFT).grid(row=row,column=1, padx=10, pady=10, sticky=S)
+			arg_data['widget'] = Text(child_windows, height = 1, width=30)
+			arg_data['widget'].grid(row=row,column=2, padx=10, pady=10, sticky=S)
+			try:	
+				arg_data['widget'].insert("end", value[value_index])
+			except Exception as e:
+				print('Error while adding string value:', e)
+				pass	
+	
+			arg_data_list.append(arg_data)
+			row +=1
+			value_index+=1
+		# Force update event user click on close button
+		#child_windows.protocol("WM_DELETE_WINDOW", lambda c=child_windows, i=treeview_node, a=arg_data_list: self.Modify_Input_Value_On_Closing(c,a,i))
+		# 
+		child_windows.protocol("WM_DELETE_WINDOW", self.Close_Without_Edit)
+		Button(child_windows, text = 'Set value', command = lambda c=child_windows,i=treeview_node, a=arg_data_list: self.Modify_Input_Value_On_Closing(c,a,i)).grid(row=row,column=2, padx=10, pady=10, sticky=E)
+		
+		child_windows.bind('<Return>', lambda event, c=child_windows,i=treeview_node, a=arg_data_list: self.Modify_Input_Value_On_Closing(c,a,i))
+	
+	def Close_Without_Edit(self):
+		self.Input_Windows = False
+
+	def Modify_Input_Value_On_Closing(self, child_windows, arg_data_list, treeview_node= None):
+		print('arg_data_list', arg_data_list)
+		input_value = []
+		for arg_data in arg_data_list:
+			temp_value = None
+			temp_value = arg_data['widget'].get("1.0", END).replace('\n', '')
+			input_value.append(temp_value)
+		
+		values = input_value
+
+		self.Treeview.item(treeview_node, text= '', values=values)
+
+		if child_windows != None:
+			child_windows.destroy()	
+		self.Input_Windows = False	
 
 	def Btn_OCR_Update_Area(self):
 
@@ -1006,6 +1190,7 @@ class OCR_Project(Frame):
 				os.mkdir(self.Output_Result_Folder)
 		output_result_file = self.Output_Result_Folder + '/result.csv'
 		#_ratio = 720	
+		
 		_scan_areas = []
 		for row in self.Treeview.get_children():
 			child = self.Treeview.item(row)
