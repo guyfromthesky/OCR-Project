@@ -1122,10 +1122,13 @@ class OCR_Project(Frame):
 
 		row = 1
 		_column_list = ['x', 'y', 'w', 'h', 'x1', 'y1', 'w1', 'w1']
-		arg_data_list = []
+		arg_data_list = {}
 		child = self.Treeview.item(treeview_node)
 		value = child['values']
-		print('Value: ', value)
+		if self.OCR_File_Path != None:
+			btn_status = NORMAL
+		else:
+			btn_status = DISABLED
 		value_index=  0
 		for arg in _column_list:
 			arg_data = {}
@@ -1142,10 +1145,17 @@ class OCR_Project(Frame):
 			except Exception as e:
 				print('Error while adding string value:', e)
 				pass	
-	
-			arg_data_list.append(arg_data)
+			
+
+			arg_data_list[arg] = arg_data
 			row +=1
 			value_index+=1
+
+		arg_data['button'] = Button(child_windows, text = 'Select Text', command = lambda val=arg_data_list: self.Btn_Select_Text(val), state=btn_status)
+		arg_data['button'].grid(row=1,column=3, padx=10, pady=10, sticky=E)	
+
+		arg_data['button'] = Button(child_windows, text = 'Select Image', command = lambda val=arg_data['widget']: self.Btn_Select_Image(val), state=btn_status)
+		arg_data['button'].grid(row=5,column=3, padx=10, pady=10, sticky=E)	
 		# Force update event user click on close button
 		#child_windows.protocol("WM_DELETE_WINDOW", lambda c=child_windows, i=treeview_node, a=arg_data_list: self.Modify_Input_Value_On_Closing(c,a,i))
 		# 
@@ -1154,6 +1164,52 @@ class OCR_Project(Frame):
 		
 		child_windows.bind('<Return>', lambda event, c=child_windows,i=treeview_node, a=arg_data_list: self.Modify_Input_Value_On_Closing(c,a,i))
 	
+	def Btn_Select_Image(self, text_widget):
+		if self.OCR_File_Path != None:
+			_index = random.randint(0, len(self.OCR_File_Path)-1)
+			if os.path.isfile(self.OCR_File_Path[_index]):
+				#im = self.Function_Load_Img(self.OCR_File_Path[_index])
+				im = cv2.imread(self.OCR_File_Path[_index])
+				show_im, ratio = self.Resize_Image_by_ratio(im)
+				
+				#image = cv2.imdecode(np.frombuffer(im, np.uint8), cv2.IMREAD_COLOR)
+				location = cv2.selectROI("Select scan area", show_im, showCrosshair=False,fromCenter=False)
+				cv2.destroyAllWindows()
+				text_widget['x']['widget'].delete('1.0', END)
+				text_widget['x']['widget'].insert('end', location[0]*ratio)
+
+				text_widget['y']['widget'].delete('1.0', END)
+				text_widget['y']['widget'].insert('end', location[1]*ratio)
+
+				text_widget['w']['widget'].delete('1.0', END)
+				text_widget['w']['widget'].insert('end', location[2]*ratio)
+
+				text_widget['h']['widget'].delete('1.0', END)
+				text_widget['h']['widget'].insert('end', location[3]*ratio)
+	
+	def Btn_Select_Text(self, text_widget):
+		if self.OCR_File_Path != None:
+			_index = random.randint(0, len(self.OCR_File_Path)-1)
+			if os.path.isfile(self.OCR_File_Path[_index]):
+				#im = self.Function_Load_Img(self.OCR_File_Path[_index])
+				im = cv2.imread(self.OCR_File_Path[_index])
+				show_im, ratio = self.Resize_Image_by_ratio(im)
+				
+				#image = cv2.imdecode(np.frombuffer(im, np.uint8), cv2.IMREAD_COLOR)
+				location = cv2.selectROI("Select scan area", show_im, showCrosshair=False,fromCenter=False)
+				cv2.destroyAllWindows()
+				text_widget['x1']['widget'].delete('1.0', END)
+				text_widget['x1']['widget'].insert('end', location[0]*ratio)
+
+				text_widget['y1']['widget'].delete('1.0', END)
+				text_widget['y1']['widget'].insert('end', location[1]*ratio)
+
+				text_widget['w1']['widget'].delete('1.0', END)
+				text_widget['w1']['widget'].insert('end', location[2]*ratio)
+
+				text_widget['h1']['widget'].delete('1.0', END)
+				text_widget['h1']['widget'].insert('end', location[3]*ratio)		
+
 	def Close_Without_Edit(self, child_windows):
 		child_windows.destroy()	
 		self.Input_Windows = False
@@ -1161,7 +1217,8 @@ class OCR_Project(Frame):
 	def Modify_Input_Value_On_Closing(self, child_windows, arg_data_list, treeview_node= None):
 		print('arg_data_list', arg_data_list)
 		input_value = []
-		for arg_data in arg_data_list:
+		for key in arg_data_list:
+			arg_data = arg_data_list[key]
 			temp_value = None
 			temp_value = arg_data['widget'].get("1.0", END).replace('\n', '')
 			input_value.append(temp_value)
