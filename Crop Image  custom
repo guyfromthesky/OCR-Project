@@ -1,0 +1,117 @@
+#System variable and io handling
+import os
+import csv
+
+from shutil import copyfile, rmtree
+from re import match
+import sys
+import random
+
+
+#import configparser
+#Regular expression handlings
+import multiprocessing
+from multiprocessing import Process , Queue, Manager
+import queue 
+import subprocess
+#Get timestamp
+
+from datetime import datetime
+from tkinter.constants import COMMAND
+#function difination
+
+from urllib.parse import urlparse
+
+#GUI
+from tkinter.ttk import Entry, Label, Treeview, Scrollbar, OptionMenu
+from tkinter.ttk import Button, Notebook, Radiobutton
+from tkinter.ttk import Progressbar, Style
+
+from tkinter import Toplevel , Tk, Frame
+from tkinter import Menu, filedialog, messagebox
+from tkinter import Text, colorchooser
+from tkinter import IntVar, StringVar
+from tkinter import W, E, S, N, END, RIGHT, HORIZONTAL, NO, CENTER
+from tkinter import WORD, NORMAL, BOTTOM, X, TOP, BOTH, Y, LEFT
+from tkinter import DISABLED
+
+from tkinter import scrolledtext 
+
+from openpyxl import load_workbook, Workbook
+from openpyxl.styles import Font
+from openpyxl.styles import PatternFill
+from openpyxl.styles import Color
+from openpyxl.styles import Color, PatternFill, Font
+
+from openpyxl.formatting.rule import ColorScaleRule, CellIsRule, FormulaRule
+from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.utils import get_column_letter, column_index_from_string
+
+from openpyxl.drawing.image import Image
+
+import webbrowser
+
+from libs.configmanager import ConfigLoader
+from libs.version import get_version
+from libs.tkinter_extension import AutocompleteCombobox
+
+import cv2
+import pytesseract
+
+#import Levenshtein as lev
+from rapidfuzz.distance import Levenshtein as lev_distance
+from rapidfuzz.distance import Indel as lev_ratio
+import shutil
+
+#from document_toolkit_function.py import *
+
+def _get_item_location( img_template_path, match_rate= 0.90):
+    template_path = r'C:\Users\evan\Documents\GitHub\OCR-Project\All Magical lock\Boost.png'
+
+    template = cv2.imread(template_path)
+    template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+    (tH, tW) = template.shape[:2]
+
+    _img_screenshot = cv2.imread(img_template_path)
+    _img_screenshot = cv2.cvtColor(_img_screenshot, cv2.COLOR_BGR2GRAY)
+    #cv2.imshow('Template',template)
+    #cv2.imshow('Scr',_img_screenshot)
+    #cv2.waitKey(0)
+    Found = None
+    Loc = None
+    result = cv2.matchTemplate(_img_screenshot, template, cv2.TM_CCOEFF_NORMED)
+    (_, maxVal, _, maxLoc) = cv2.minMaxLoc(result)
+    #match_rate *=0.9
+    if Found is None or maxVal > Found[0]:
+        
+        Found = (maxVal, maxLoc)
+        if maxVal >= match_rate:
+            print('maxVal', maxVal, 'match_rate', match_rate)
+            (startX, startY) = (int(maxLoc[0]), int(maxLoc[1]))
+            (endX, endY) = (int((maxLoc[0] + tW)), int((maxLoc[1] + tH)))
+            Loc = {"x": int((maxLoc[0] + 0.5 * tW)), "y": int((maxLoc[1] + 0.5 * tH)), "w": int(abs(startX-endX)), "h": int(abs(startY-endY))}
+
+    if Loc != None:
+        # Return the real location on the screen:
+        for key in Loc:
+            Loc[key]
+        return Loc
+    else:
+        return False	
+
+DELAY1 = 20
+
+all_image_dir = r'C:\Users\evan\Documents\GitHub\OCR-Project\All Magical lock\All'
+new_image_dir = r'C:\Users\evan\Documents\GitHub\OCR-Project\All Magical lock\Removed'
+_temp_image_files = os.listdir(all_image_dir)
+
+all_images = []
+for image in _temp_image_files:
+    image_path = all_image_dir + '\\' + image
+    new_image_path = new_image_dir + '\\' + image
+    if os.path.isfile(image_path):
+        search = _get_item_location(image_path)
+        if search == False:
+            # Copy file to new location
+            shutil.copy(image_path, new_image_path)

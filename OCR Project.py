@@ -67,9 +67,9 @@ from rapidfuzz.distance import Indel as lev_ratio
 
 DELAY1 = 20
 
-ToolDisplayName = "OCR Project"
+ToolDisplayName = "Image Toolkit"
 tool_name = 'ocr'
-rev = 1105
+rev = 1106
 a,b,c,d = list(str(rev))
 VerNum = a + '.' + b + '.' + c + chr(int(d)+97)
 
@@ -268,6 +268,11 @@ class OCR_Project(Frame):
 		#
 		self.Generate_Treeview_Advanced_UI(Tab, Row)
 
+		Btn_Select_Area = Button(Tab, width = self.Button_Width_Half, text= "Auto Input", command= self.Btn_OCR_Auto_Add_Area)
+		Btn_Select_Area.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+
+		Row+=1
+
 		Btn_Select_Area = Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['SelectArea'], command= self.Btn_OCR_Select_Area_Advanced)
 		Btn_Select_Area.grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
 		
@@ -282,8 +287,8 @@ class OCR_Project(Frame):
 
 		Row += 1
 		Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['Load'], command= self.Btn_OCR_Browse_Config_File).grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
-		Row += 1
-		Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['Save'], command= self.Btn_OCR_Save_Config_File).grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
+		#Row += 1
+		#Button(Tab, width = self.Button_Width_Half, text= self.LanguagePack.Button['Save'], command= self.Btn_OCR_Save_Config_File).grid(row=Row, column=9, columnspan=2, padx=5, pady=5, sticky=W)
 
 
 		Row+=1
@@ -599,7 +604,7 @@ class OCR_Project(Frame):
 		return str(path).replace('/', '\\')
 	
 	def Menu_Function_Open_Main_Guideline(self):
-		webbrowser.open_new(r"https://confluence.nexon.com/display/NWMQA/OCR+%28Optical+Character+Recognition%29+Tool")
+		webbrowser.open_new(r"https://confluence.nexon.com/display/NWVNQA/OCR+%28Optical+Character+Recognition%29+Tool")
 
 	def onExit(self):
 		self.quit()
@@ -871,10 +876,10 @@ class OCR_Project(Frame):
 
 					if _scan_type in ['Image and Text', 'DB Create', 'Image only']:
 						if areas[6] > 0 and areas[7] >0:
-							im = cv2.rectangle(im, (areas[4], areas[5]), (areas[4] + areas[6], areas[5] + areas[7]), (255,255,0), 2)
+							im = cv2.rectangle(im, (areas[4], areas[5]), (areas[4] + areas[6], areas[5] + areas[7]), (255,255,0), 1)
 					if _scan_type in ['Image and Text', 'DB Create', 'Text only']:
 						if areas[2] > 0 and areas[3] >0:	
-							im = cv2.rectangle(im, (areas[0], areas[1]), (areas[0] + areas[2], areas[1] + areas[3]), (255,0,0), 2)
+							im = cv2.rectangle(im, (areas[0], areas[1]), (areas[0] + areas[2], areas[1] + areas[3]), (255,0,0), 1)
 					
 				cv2.imshow("Display ratio: " + str(int(ratio*100)) + "%", im)
 				cv2.waitKey(0)
@@ -882,6 +887,78 @@ class OCR_Project(Frame):
 				self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])		
 		else:
 			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])	
+
+	def Btn_OCR_Auto_Add_Area(self):
+
+		_scan_type = self.ScanType.get()
+		# Only support image scan type
+		if 'Image' not in _scan_type:
+			return
+		if self.OCR_File_Path != None:
+			_index = random.randint(0, len(self.OCR_File_Path)-1)
+			if os.path.isfile(self.OCR_File_Path[_index]):
+				im = cv2.imread(self.OCR_File_Path[_index])
+				im, ratio = self.Resize_Image_by_ratio(im)
+				gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+
+				# Find Canny edges
+				edged = cv2.Canny(gray, 30, 200)
+				cv2.waitKey(0)
+
+				# Finding Contours
+				# Use a copy of the image e.g. edged.copy()
+				# since findContours alters the image
+				contours, hierarchy = cv2.findContours(edged,
+					cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+				# Draw all contours
+				# -1 signifies drawing all contours
+				print("Number of Contours found = " + str(len(contours)))
+				boxes = []
+				for i,contour in enumerate(contours):
+					approx = cv2.approxPolyDP(contour, 0.01*cv2.arcLength(contour,True),True)   
+					if len(approx) == 4:
+						X,Y,W,H = cv2.boundingRect(approx)
+						box = {'x':X,'y':Y,'w':W,'h':H}
+						boxes.append(box)
+				
+				total_boxes = len(boxes)
+				'''
+				total_w = 0
+				total_h = 0
+				for box in boxes:
+					total_w += box['w']
+					total_h += box['h']
+				avg_w = int(total_w/total_boxes)
+				avg_h = int(total_h/total_boxes)
+				for box in boxes:
+					box['w'] = avg_w
+					box['h'] = avg_h
+				'''
+				# Update all x value in boxes if it is has similar value with other boxes
+				for i,box in enumerate(boxes):
+					for j,box2 in enumerate(boxes):
+						if i != j:
+							one_percent_x = int(box['x']*0.01)
+							one_percent_y = int(box['y']*0.01)
+							if abs(box['x'] - box2['x'] ) < one_percent_x:
+								box['x'] = box2['x']
+							if abs(box['y'] - box2['y'] ) < one_percent_y:
+								box['y'] = box2['y']
+
+				for box in boxes:
+					_new_location2 = []
+					for area in box:
+						_new_location2.append(int(box[area]/ratio))
+					_new_location = [0,0,0,0]
+					cv2.rectangle(im, (box['x'],box['y']), (box['x']+box['w'],box['y']+box['h']), (0,255,0), 1)
+					self.Treeview.insert('', 'end', text= '', values=(str(_new_location[0]), str(_new_location[1]), str(_new_location[2]), str(_new_location[3]), str(_new_location2[0]), str(_new_location2[1]), str(_new_location2[2]), str(_new_location2[3]) ))
+				self.Write_Debug('Add ' + str(total_boxes) + ' areas')
+			
+			else:
+				self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])		
+		else:
+			self.Write_Debug(self.LanguagePack.ToolTips['SourceDocumentEmpty'])
+
 
 	def Btn_OCR_Select_Area_Advanced(self):
 		_scan_type = self.ScanType.get()
@@ -910,14 +987,14 @@ class OCR_Project(Frame):
 						areas.append(int(area * ratio))
 
 					if _scan_type in ['Image and Text', 'DB Create', 'Text only']:
-						im = cv2.rectangle(im, (areas[0], areas[1]), (areas[0] + areas[2], areas[1] + areas[3]), (255,0,0), 2)
+						im = cv2.rectangle(im, (areas[0], areas[1]), (areas[0] + areas[2], areas[1] + areas[3]), (255,0,0), 1)
 					if _scan_type in ['Image and Text', 'DB Create', 'Image only']:
-						im = cv2.rectangle(im, (areas[4], areas[5]), (areas[4] + areas[6], areas[5] + areas[7]), (255,255,0), 2)
+						im = cv2.rectangle(im, (areas[4], areas[5]), (areas[4] + areas[6], areas[5] + areas[7]), (255,255,0), 1)
 				location = [0,0,0,0]
 				location2 = [0,0,0,0]
 				if _scan_type in ['Image and Text', 'DB Create', 'Text only']:
 					location = cv2.selectROI("Select TEXT area", im, showCrosshair=False,fromCenter=False)
-					im = cv2.rectangle(im, (location[0], location[1]), (location[0] + location[2], location[1] + location[3]), (255,0,0), 2)
+					im = cv2.rectangle(im, (location[0], location[1]), (location[0] + location[2], location[1] + location[3]), (255,0,0), 1)
 					cv2.destroyAllWindows() 
 				if _scan_type in ['Image and Text', 'DB Create', 'Image only']:
 					location2 = cv2.selectROI("Select COMPONENT area", im, showCrosshair=False,fromCenter=False)
@@ -933,7 +1010,7 @@ class OCR_Project(Frame):
 					_new_location2.append(int(area/ratio))	
 				
 				#Check if location and location2 is not empty:
-				if _new_location != [0,0,0,0] and _new_location2 != [0,0,0,0]:
+				if _new_location != [0,0,0,0] or _new_location2 != [0,0,0,0]:
 					self.Treeview.insert('', 'end', text= '', values=(str(_new_location[0]), str(_new_location[1]), str(_new_location[2]), str(_new_location[3]), str(_new_location2[0]), str(_new_location2[1]), str(_new_location2[2]), str(_new_location2[3]) ))
 				
 			else:
@@ -1072,12 +1149,13 @@ class OCR_Project(Frame):
 		# Force update event user click on close button
 		#child_windows.protocol("WM_DELETE_WINDOW", lambda c=child_windows, i=treeview_node, a=arg_data_list: self.Modify_Input_Value_On_Closing(c,a,i))
 		# 
-		child_windows.protocol("WM_DELETE_WINDOW", self.Close_Without_Edit)
+		child_windows.protocol("WM_DELETE_WINDOW", lambda c=child_windows : self.Close_Without_Edit(c))
 		Button(child_windows, text = 'Set value', command = lambda c=child_windows,i=treeview_node, a=arg_data_list: self.Modify_Input_Value_On_Closing(c,a,i)).grid(row=row,column=2, padx=10, pady=10, sticky=E)
 		
 		child_windows.bind('<Return>', lambda event, c=child_windows,i=treeview_node, a=arg_data_list: self.Modify_Input_Value_On_Closing(c,a,i))
 	
-	def Close_Without_Edit(self):
+	def Close_Without_Edit(self, child_windows):
+		child_windows.destroy()	
 		self.Input_Windows = False
 
 	def Modify_Input_Value_On_Closing(self, child_windows, arg_data_list, treeview_node= None):
@@ -1161,9 +1239,8 @@ class OCR_Project(Frame):
 	def Open_OCR_Result_Folder(self):
 		try:
 			path = self.Function_Correct_Path(self.Output_Result_Folder)
-			_cmd = 'explorer ' + "\"" + str(path) + "\""
-			
-			subprocess.Popen(_cmd)
+			BasePath = str(os.path.abspath(path))
+			os.startfile(BasePath)
 		except AttributeError:
 			self.Show_Error_Message('Please select source folder.')
 			return
@@ -1176,6 +1253,7 @@ class OCR_Project(Frame):
 		Image_Files = self.OCR_File_Path
 		Image_Folder =  os.path.dirname( self.OCR_File_Path[0])
 
+		# Create the current timestamp in dd_mm_yyyy_hh_mm_ss format
 
 		timestamp = Function_Get_TimeStamp()
 		
@@ -1183,7 +1261,7 @@ class OCR_Project(Frame):
 		_scan_type = self.ScanType.get()
 		if _scan_type == 'DB Create':
 			self.Output_Result_Folder = os.path.dirname(_db_path)
-			print(self.Output_Result_Folder)
+			#print(self.Output_Result_Folder)
 		else:
 			self.Output_Result_Folder = Image_Folder + '/' + 'Scan_Result_' + str(timestamp)
 			if not os.path.isdir(self.Output_Result_Folder):
@@ -1945,21 +2023,23 @@ def Function_Crop_All_Image(Process_Queue, source_images, scan_areas, output_dir
 		sourcename, ext = os.path.splitext(baseName)
 		#_img = Load_Image_by_Ratio(image, ratio)
 		_img = cv2.imread(image)
+
 		info[sourcename] = []
 		for area in scan_areas:
 			_area_count +=1
+			#(area)
 			imCrop = _img[int(area[5]):int(area[5]+_avg_h), int(area[4]):int(area[4]+_avg_w)]
 			_name = output_dir + '\\' + sourcename + '_' + str(_area_count) + ext
-			
-			cv2.imwrite(_name, imCrop)
+			try:
+				cv2.imwrite(_name, imCrop)
+				image_info = {}
+				image_info['link'] = _name
+				image_info['area'] = _area_count
 
-			image_info = {}
-			image_info['link'] = _name
-			image_info['area'] = _area_count
-
-			info[sourcename].append(image_info)
-			amount+=1
-
+				info[sourcename].append(image_info)
+				amount+=1
+			except Exception as e:
+				print('Error: ' + str(e))
 		percent = ShowProgress(amount, total_task, process_ratio, start_percent)
 		Process_Queue.put(percent)		
 
@@ -2462,8 +2542,7 @@ def ShowProgress(Counter, TotalProcess, share=1, start_value=0):
 	return percent
 
 def Function_Get_TimeStamp():
-	now = datetime.now()
-	timestamp = str(int(datetime.timestamp(now)))
+	timestamp = str(datetime.now().strftime("%d_%m_%Y_%H_%M_%S"))
 	return timestamp
 
 def initFolder(dir_path):

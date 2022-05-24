@@ -4,7 +4,7 @@
 import cv2
 import numpy as np
 
-img_path = r'D:\App\OCR Project\Fellow Gacha\Screenshot_20211025-145143_V4.jpg'
+img_path = r'C:\Users\evan\Documents\GitHub\OCR-Project\BAKR\Crop_IMG__1651113545.png'
 
 img = cv2.imread(img_path)
 
